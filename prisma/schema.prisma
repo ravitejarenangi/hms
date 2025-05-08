@@ -253,3 +253,680 @@ model Department {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 }
+
+// Nurse model
+model Nurse {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional information
+  qualification     String
+  licenseNumber     String
+  experience        Int             // in years
+
+  // Department
+  departmentId      String?
+  department        Department?     @relation(fields: [departmentId], references: [id])
+
+  // Shift information
+  shift             String?         // morning, evening, night
+
+  // Relations
+  medicalRecords    MedicalRecord[]
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Appointment model
+model Appointment {
+  id                String          @id @default(cuid())
+
+  // Patient information
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id])
+
+  // Doctor information
+  doctorId          String
+  doctor            Doctor          @relation(fields: [doctorId], references: [id])
+
+  // Department information
+  departmentId      String?
+  department        Department?     @relation(fields: [departmentId], references: [id])
+
+  // Appointment details
+  date              DateTime
+  startTime         String          // HH:MM format
+  endTime           String          // HH:MM format
+  status            String          @default("scheduled") // scheduled, completed, cancelled, no-show
+  type              String          @default("consultation") // consultation, follow-up, procedure, etc.
+  reason            String?
+  notes             String?
+
+  // Vitals recorded during appointment
+  vitals            Vital[]
+
+  // Related records
+  medicalRecord     MedicalRecord?
+  prescription      Prescription?
+  invoice           Invoice?
+
+  // Created by
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Vital model
+model Vital {
+  id                String          @id @default(cuid())
+
+  // Appointment information
+  appointmentId     String
+  appointment       Appointment     @relation(fields: [appointmentId], references: [id])
+
+  // Vital signs
+  temperature       Decimal?        @db.Decimal(5, 2) // in Celsius
+  bloodPressureSystolic Int?        // in mmHg
+  bloodPressureDiastolic Int?       // in mmHg
+  heartRate         Int?            // in bpm
+  respiratoryRate   Int?            // in breaths per minute
+  oxygenSaturation  Int?            // in percentage
+  height            Decimal?        @db.Decimal(5, 2) // in cm
+  weight            Decimal?        @db.Decimal(5, 2) // in kg
+  bmi               Decimal?        @db.Decimal(5, 2) // calculated
+
+  // Notes
+  notes             String?
+
+  // Recorded by
+  recordedById      String
+  recordedBy        User            @relation(fields: [recordedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Medical Record model
+model MedicalRecord {
+  id                String          @id @default(cuid())
+
+  // Patient information
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id])
+
+  // Doctor information
+  doctorId          String
+  doctor            Doctor          @relation(fields: [doctorId], references: [id])
+
+  // Nurse information (optional)
+  nurseId           String?
+  nurse             Nurse?          @relation(fields: [nurseId], references: [id])
+
+  // Appointment information
+  appointmentId     String          @unique
+  appointment       Appointment     @relation(fields: [appointmentId], references: [id])
+
+  // Medical record details
+  diagnosis         String?
+  symptoms          String[]
+  treatment         String?
+  notes             String?
+  followUpDate      DateTime?
+
+  // Attachments (e.g., lab reports, images)
+  attachments       Attachment[]
+
+  // Created by
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Attachment model
+model Attachment {
+  id                String          @id @default(cuid())
+
+  // Medical record information
+  medicalRecordId   String
+  medicalRecord     MedicalRecord   @relation(fields: [medicalRecordId], references: [id])
+
+  // Attachment details
+  fileName          String
+  fileType          String          // MIME type
+  fileSize          Int             // in bytes
+  filePath          String          // path to the file in storage
+  description       String?
+
+  // Uploaded by
+  uploadedById      String
+  uploadedBy        User            @relation(fields: [uploadedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Prescription model
+model Prescription {
+  id                String          @id @default(cuid())
+
+  // Patient information
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id])
+
+  // Doctor information
+  doctorId          String
+  doctor            Doctor          @relation(fields: [doctorId], references: [id])
+
+  // Appointment information
+  appointmentId     String?         @unique
+  appointment       Appointment?    @relation(fields: [appointmentId], references: [id])
+
+  // Prescription details
+  diagnosis         String?
+  notes             String?
+
+  // Medications
+  medications       Medication[]
+
+  // Status
+  status            String          @default("active") // active, completed, cancelled
+
+  // Created by
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Medication model
+model Medication {
+  id                String          @id @default(cuid())
+
+  // Prescription information
+  prescriptionId    String
+  prescription      Prescription    @relation(fields: [prescriptionId], references: [id])
+
+  // Medication details
+  name              String
+  dosage            String
+  frequency         String          // e.g., "3 times a day", "every 8 hours"
+  duration          String          // e.g., "7 days", "2 weeks"
+  instructions      String?         // e.g., "Take after meals"
+
+  // Inventory item (if linked to inventory)
+  inventoryItemId   String?
+  inventoryItem     InventoryItem?  @relation(fields: [inventoryItemId], references: [id])
+
+  // Status
+  status            String          @default("prescribed") // prescribed, dispensed, cancelled
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Inventory Item model
+model InventoryItem {
+  id                String          @id @default(cuid())
+
+  // Item details
+  name              String
+  description       String?
+  category          String          // medicine, equipment, supplies, etc.
+  type              String?         // tablet, injection, syrup, etc. (for medicines)
+  code              String?         // item code or SKU
+
+  // Stock information
+  quantity          Int             @default(0)
+  unit              String          // e.g., "tablet", "bottle", "box"
+  batchNumber       String?
+  expiryDate        DateTime?
+
+  // Pricing
+  costPrice         Decimal         @db.Decimal(10, 2)
+  sellingPrice      Decimal         @db.Decimal(10, 2)
+
+  // Thresholds
+  minimumStock      Int             @default(10)
+  reorderLevel      Int             @default(20)
+
+  // Supplier information
+  supplierId        String?
+  supplier          Supplier?       @relation(fields: [supplierId], references: [id])
+
+  // Relations
+  medications       Medication[]
+  inventoryLogs     InventoryLog[]
+
+  // Status
+  status            String          @default("active") // active, discontinued, expired
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Supplier model
+model Supplier {
+  id                String          @id @default(cuid())
+
+  // Supplier details
+  name              String
+  contactPerson     String?
+  email             String?
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+  postalCode        String?
+
+  // Tax information
+  taxId             String?
+
+  // Payment information
+  paymentTerms      String?         // e.g., "Net 30", "COD"
+  bankName          String?
+  accountNumber     String?
+
+  // Relations
+  inventoryItems    InventoryItem[]
+
+  // Status
+  status            String          @default("active") // active, inactive
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Inventory Log model
+model InventoryLog {
+  id                String          @id @default(cuid())
+
+  // Inventory item information
+  inventoryItemId   String
+  inventoryItem     InventoryItem   @relation(fields: [inventoryItemId], references: [id])
+
+  // Log details
+  type              String          // purchase, sale, adjustment, return, expiry
+  quantity          Int
+  batchNumber       String?
+  expiryDate        DateTime?
+
+  // Purchase/Sale information
+  unitPrice         Decimal?        @db.Decimal(10, 2)
+  totalPrice        Decimal?        @db.Decimal(10, 2)
+  invoiceNumber     String?
+
+  // Reference information
+  referenceId       String?         // ID of related entity (e.g., purchase order, invoice)
+  referenceType     String?         // Type of related entity (e.g., PurchaseOrder, Invoice)
+
+  // Notes
+  notes             String?
+
+  // Recorded by
+  recordedById      String
+  recordedBy        User            @relation(fields: [recordedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Invoice model
+model Invoice {
+  id                String          @id @default(cuid())
+
+  // Patient information
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id])
+
+  // Appointment information (optional)
+  appointmentId     String?         @unique
+  appointment       Appointment?    @relation(fields: [appointmentId], references: [id])
+
+  // Invoice details
+  invoiceNumber     String          @unique
+  invoiceDate       DateTime        @default(now())
+  dueDate           DateTime
+
+  // Amounts
+  subtotal          Decimal         @db.Decimal(10, 2)
+  taxAmount         Decimal         @db.Decimal(10, 2)
+  discountAmount    Decimal         @db.Decimal(10, 2)
+  totalAmount       Decimal         @db.Decimal(10, 2)
+
+  // Status
+  status            String          @default("pending") // pending, paid, partially_paid, overdue, cancelled
+
+  // Notes
+  notes             String?
+
+  // Relations
+  invoiceItems      InvoiceItem[]
+  payments          Payment[]
+
+  // Created by
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Invoice Item model
+model InvoiceItem {
+  id                String          @id @default(cuid())
+
+  // Invoice information
+  invoiceId         String
+  invoice           Invoice         @relation(fields: [invoiceId], references: [id])
+
+  // Item details
+  description       String
+  quantity          Int
+  unitPrice         Decimal         @db.Decimal(10, 2)
+  totalPrice        Decimal         @db.Decimal(10, 2)
+
+  // Tax and discount
+  taxPercentage     Decimal?        @db.Decimal(5, 2)
+  taxAmount         Decimal?        @db.Decimal(10, 2)
+  discountPercentage Decimal?       @db.Decimal(5, 2)
+  discountAmount    Decimal?        @db.Decimal(10, 2)
+
+  // Item type
+  itemType          String          // service, medication, procedure, etc.
+
+  // Reference information (optional)
+  referenceId       String?         // ID of related entity (e.g., medication, service)
+  referenceType     String?         // Type of related entity (e.g., Medication, Service)
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Payment model
+model Payment {
+  id                String          @id @default(cuid())
+
+  // Invoice information
+  invoiceId         String
+  invoice           Invoice         @relation(fields: [invoiceId], references: [id])
+
+  // Payment details
+  paymentNumber     String          @unique
+  paymentDate       DateTime        @default(now())
+  amount            Decimal         @db.Decimal(10, 2)
+
+  // Payment method
+  paymentMethod     String          // cash, credit_card, debit_card, bank_transfer, insurance, etc.
+  transactionId     String?         // For electronic payments
+
+  // Reference information
+  referenceNumber   String?         // Check number, transaction reference, etc.
+
+  // Notes
+  notes             String?
+
+  // Status
+  status            String          @default("completed") // completed, pending, failed, refunded
+
+  // Recorded by
+  recordedById      String
+  recordedBy        User            @relation(fields: [recordedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Receptionist model
+model Receptionist {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional information
+  qualification     String?
+  experience        Int?            // in years
+
+  // Shift information
+  shift             String?         // morning, evening, night
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Pharmacist model
+model Pharmacist {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional information
+  qualification     String
+  licenseNumber     String
+  experience        Int             // in years
+
+  // Shift information
+  shift             String?         // morning, evening, night
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Accountant model
+model Accountant {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional information
+  qualification     String
+  experience        Int             // in years
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Pathologist model
+model Pathologist {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional information
+  qualification     String
+  licenseNumber     String
+  experience        Int             // in years
+  specialization    String?
+
+  // Relations
+  labTests          LabTest[]
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Lab Test model
+model LabTest {
+  id                String          @id @default(cuid())
+
+  // Patient information
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id])
+
+  // Test information
+  testName          String
+  testType          String          // blood, urine, stool, etc.
+  testCode          String?
+
+  // Pathologist information
+  pathologistId     String?
+  pathologist       Pathologist?    @relation(fields: [pathologistId], references: [id])
+
+  // Doctor who ordered the test
+  doctorId          String
+  doctor            Doctor          @relation(fields: [doctorId], references: [id])
+
+  // Test details
+  sampleCollectionDate DateTime?
+  reportDate        DateTime?
+  results           Json?           // Stored as JSON object with test parameters and values
+  normalRanges      Json?           // Stored as JSON object with parameter ranges
+  interpretation    String?
+  conclusion        String?
+
+  // Status
+  status            String          @default("ordered") // ordered, sample_collected, processing, completed, cancelled
+
+  // Notes
+  notes             String?
+
+  // Attachments
+  attachments       LabTestAttachment[]
+
+  // Created by
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Lab Test Attachment model
+model LabTestAttachment {
+  id                String          @id @default(cuid())
+
+  // Lab test information
+  labTestId         String
+  labTest           LabTest         @relation(fields: [labTestId], references: [id])
+
+  // Attachment details
+  fileName          String
+  fileType          String          // MIME type
+  fileSize          Int             // in bytes
+  filePath          String          // path to the file in storage
+  description       String?
+
+  // Uploaded by
+  uploadedById      String
+  uploadedBy        User            @relation(fields: [uploadedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Radiologist model
+model Radiologist {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Professional information
+  qualification     String
+  licenseNumber     String
+  experience        Int             // in years
+  specialization    String?
+
+  // Relations
+  imagingTests      ImagingTest[]
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Imaging Test model
+model ImagingTest {
+  id                String          @id @default(cuid())
+
+  // Patient information
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id])
+
+  // Test information
+  testName          String
+  testType          String          // x-ray, ultrasound, CT scan, MRI, etc.
+  bodyPart          String          // head, chest, abdomen, etc.
+
+  // Radiologist information
+  radiologistId     String?
+  radiologist       Radiologist?    @relation(fields: [radiologistId], references: [id])
+
+  // Doctor who ordered the test
+  doctorId          String
+  doctor            Doctor          @relation(fields: [doctorId], references: [id])
+
+  // Test details
+  scheduledDate     DateTime?
+  performedDate     DateTime?
+  reportDate        DateTime?
+  findings          String?
+  impression        String?
+  recommendations   String?
+
+  // Status
+  status            String          @default("ordered") // ordered, scheduled, performed, reported, cancelled
+
+  // Notes
+  notes             String?
+
+  // Attachments
+  attachments       ImagingTestAttachment[]
+
+  // Created by
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Imaging Test Attachment model
+model ImagingTestAttachment {
+  id                String          @id @default(cuid())
+
+  // Imaging test information
+  imagingTestId     String
+  imagingTest       ImagingTest     @relation(fields: [imagingTestId], references: [id])
+
+  // Attachment details
+  fileName          String
+  fileType          String          // MIME type
+  fileSize          Int             // in bytes
+  filePath          String          // path to the file in storage
+  description       String?
+
+  // Uploaded by
+  uploadedById      String
+  uploadedBy        User            @relation(fields: [uploadedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Attendance Log model
+model AttendanceLog {
+  id                String          @id @default(cuid())
+
+  // User information
+  userId            String
+  user              User            @relation(fields: [userId], references: [id])
+
+  // Attendance details
+  checkInTime       DateTime
+  checkOutTime      DateTime?
+
+  // Status
+  status            String          @default("present") // present, absent, late, half-day
+
+  // Notes
+  notes             String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
