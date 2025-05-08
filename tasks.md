@@ -1,8 +1,10 @@
 # Hospital Management System Development Tasks
 
-This document outlines the step-by-step tasks required to build a comprehensive hospital management system using the WowDash template with PostgreSQL as the database. Each task is designed to be completed sequentially, with clear instructions and focus areas.
+This document outlines the step-by-step tasks required to build a comprehensive hospital management system using the Next.js with PostgreSQL as the database. Each task is designed to be completed sequentially, with clear instructions and focus areas.
 
 ## Phase 1: Project Setup and Configuration
+
+**Node.js Version**: Use Node.js version 23 from NVM for this project.
 
 ### Task 1: Project Initialization
 Let's begin by laying the foundation for our Hospital Management System. Your first task is Project Initialization. Please perform the following steps:
@@ -24,6 +26,12 @@ Let's begin by laying the foundation for our Hospital Management System. Your fi
    * Run `npm install prisma @prisma/client` to install Prisma
    * Initialize Prisma with `npx prisma init`
    * Modify the schema.prisma file to define our PostgreSQL provider and connection string
+   * Use the following PostgreSQL connection details:
+     * Host: localhost
+     * Username: ravitejarenangi
+     * Password: (no password)
+     * Database name: hms
+     * Connection string: `postgresql://ravitejarenangi@localhost:5432/hms`
    * Create initial schema models for core entities (users, roles, permissions)
    * Run `npx prisma generate` to generate the Prisma client
 

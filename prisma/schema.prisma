@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core user model
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  phone         String?
+  status        String    @default("active") // active, inactive, suspended
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  roles         UserRole[]
+  profile       Profile?
+}
+
+// User profile with additional information
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address       String?
+  city          String?
+  state         String?
+  country       String?
+  postalCode    String?
+  bio           String?
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Role model for RBAC
+model Role {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  description   String?
+  permissions   Json?     // Stored as JSON array of permission strings
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  users         UserRole[]
+}
+
+// Junction table for many-to-many User-Role relationship
+model UserRole {
+  id            String    @id @default(cuid())
+  userId        String
+  roleId        String
+  assignedAt    DateTime  @default(now())
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roleId])
+}
