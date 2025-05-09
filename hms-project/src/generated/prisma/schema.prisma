@@ -30,22 +30,165 @@ model User {
   sessions       Session[] // User sessions
   twoFactorAuth  TwoFactorAuth? // 2FA settings
   passwordResets PasswordReset[] // Password reset tokens
+
+  // Role-specific relations
+  doctor  Doctor?
+  nurse   Nurse?
+  patient Patient?
+  staff   Staff?
+
+  // User preferences
+  preferences UserPreference?
+
+  // Appointments
+  patientAppointments Appointment[] @relation("PatientAppointments")
 }
 
 // User profile with additional information
 model Profile {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  address    String?
-  city       String?
-  state      String?
-  country    String?
-  postalCode String?
-  bio        String?
-  avatar     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  postalCode       String?
+  bio              String?
+  avatar           String?
+  dateOfBirth      DateTime?
+  gender           String?
+  bloodGroup       String?
+  emergencyContact String?
+  qualifications   String?
+  experience       String?
+  specialization   String?
+  languages        String[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// User preferences model
+model UserPreference {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme              String   @default("light")
+  language           String   @default("en")
+  notifications      Boolean  @default(true)
+  emailNotifications Boolean  @default(true)
+  smsNotifications   Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Doctor model for doctor-specific information
+model Doctor {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber         String   @unique
+  specialization        String
+  department            String?
+  qualification         String
+  experience            Int // In years
+  consultationFee       Decimal  @default(0)
+  availableFrom         String? // Time in HH:MM format
+  availableTo           String? // Time in HH:MM format
+  availableDays         Int[] // 0-6 for Sunday-Saturday
+  maxAppointmentsPerDay Int      @default(20)
+  isAvailableForOnline  Boolean  @default(false)
+  about                 String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  departments   DoctorDepartment[]
+  specialities  DoctorSpeciality[]
+  prescriptions Prescription[]
+}
+
+// Nurse model for nurse-specific information
+model Nurse {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber String   @unique
+  department    String
+  qualification String
+  experience    Int // In years
+  shift         String // morning, evening, night
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Staff model for other staff members
+model Staff {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffType   String // admin, receptionist, accountant, etc.
+  department  String?
+  designation String
+  employeeId  String   @unique
+  joiningDate DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Department model
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  doctors DoctorDepartment[]
+}
+
+// Junction table for many-to-many Doctor-Department relationship
+model DoctorDepartment {
+  id           String   @id @default(cuid())
+  doctorId     String
+  departmentId String
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  doctor     Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, departmentId])
+}
+
+// Speciality model
+model Speciality {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  doctors DoctorSpeciality[]
+}
+
+// Junction table for many-to-many Doctor-Speciality relationship
+model DoctorSpeciality {
+  id           String   @id @default(cuid())
+  doctorId     String
+  specialityId String
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  doctor     Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  speciality Speciality @relation(fields: [specialityId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, specialityId])
 }
 
 // Role model for RBAC
@@ -143,4 +286,2992 @@ model Permission {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ==================== Appointment and Scheduling Models ====================
+
+// Patient model for patient-specific information
+model Patient {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patientId         String   @unique // Hospital-assigned patient ID
+  dateOfBirth       DateTime
+  gender            String
+  bloodGroup        String?
+  maritalStatus     String?
+  occupation        String?
+  nationality       String?
+  emergencyContact  String?
+  emergencyName     String?
+  emergencyRelation String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  medicalHistory MedicalHistory?
+  vitalSigns     VitalSign[]
+  allergies      Allergy[]
+  documents      PatientDocument[]
+  familyMembers  FamilyMember[]
+  insurances     PatientInsurance[]
+  consents       PatientConsent[]
+  prescriptions  Prescription[]
+}
+
+// Medical history model
+model MedicalHistory {
+  id                 String   @id @default(cuid())
+  patientId          String   @unique
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  chronicConditions  String[]
+  pastSurgeries      String[]
+  currentMedications String[]
+  familyHistory      String?  @db.Text
+  lifestyle          String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  versions MedicalHistoryVersion[]
+}
+
+// Medical history version model for tracking changes
+model MedicalHistoryVersion {
+  id                 String         @id @default(cuid())
+  medicalHistoryId   String
+  medicalHistory     MedicalHistory @relation(fields: [medicalHistoryId], references: [id], onDelete: Cascade)
+  chronicConditions  String[]
+  pastSurgeries      String[]
+  currentMedications String[]
+  familyHistory      String?        @db.Text
+  lifestyle          String?        @db.Text
+  changedBy          String // User ID who made the change
+  changeReason       String?
+  versionNumber      Int
+  createdAt          DateTime       @default(now())
+}
+
+// Vital signs model
+model VitalSign {
+  id                     String   @id @default(cuid())
+  patientId              String
+  patient                Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  temperature            Float?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  heartRate              Int?
+  respiratoryRate        Int?
+  oxygenSaturation       Float?
+  height                 Float? // in cm
+  weight                 Float? // in kg
+  bmi                    Float?
+  notes                  String?
+  recordedBy             String // User ID who recorded
+  recordedAt             DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+// Allergy model
+model Allergy {
+  id          String    @id @default(cuid())
+  patientId   String
+  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  allergen    String
+  reaction    String
+  severity    String // mild, moderate, severe
+  diagnosedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Patient document model
+model PatientDocument {
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  fileType     String // pdf, image, etc.
+  filePath     String
+  fileSize     Int // in bytes
+  documentType String // lab report, prescription, etc.
+  uploadedBy   String // User ID who uploaded
+  uploadedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Family member model
+model FamilyMember {
+  id                 String   @id @default(cuid())
+  patientId          String
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name               String
+  relationship       String // spouse, child, parent, etc.
+  contactNumber      String?
+  medicalConditions  String?
+  isEmergencyContact Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Patient insurance model
+model PatientInsurance {
+  id                   String    @id @default(cuid())
+  patientId            String
+  patient              Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  insuranceProvider    String
+  policyNumber         String
+  groupNumber          String?
+  subscriberName       String
+  subscriberId         String?
+  relationToSubscriber String?
+  coverageStartDate    DateTime
+  coverageEndDate      DateTime?
+  isPrimary            Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+// Patient consent model
+model PatientConsent {
+  id            String    @id @default(cuid())
+  patientId     String
+  patient       Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consentType   String // treatment, data sharing, research, etc.
+  consentText   String    @db.Text
+  consentedAt   DateTime  @default(now())
+  consentedBy   String // Patient or guardian
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  revokedReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Appointment model with date, time, duration, and status
+model Appointment {
+  id                 String             @id @default(cuid())
+  patientId          String
+  doctorId           String
+  departmentId       String? // Optional reference to a department
+  appointmentTypeId  String
+  title              String
+  description        String?
+  startTime          DateTime
+  endTime            DateTime
+  duration           Int // Duration in minutes
+  status             AppointmentStatus  @default(SCHEDULED)
+  isRecurring        Boolean            @default(false)
+  recurringPatternId String? // Reference to recurring pattern if applicable
+  location           String? // Room or location for the appointment
+  notes              String? // Additional notes
+  createdBy          String // User who created the appointment
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  cancelledAt        DateTime? // When the appointment was cancelled
+  cancelReason       String? // Reason for cancellation
+  reminderSent       Boolean            @default(false)
+  confirmationStatus ConfirmationStatus @default(PENDING)
+  confirmationTime   DateTime? // When the appointment was confirmed
+  checkInTime        DateTime? // When the patient checked in
+  checkOutTime       DateTime? // When the appointment was completed
+  noShow             Boolean            @default(false)
+  followUpNeeded     Boolean            @default(false)
+  followUpNotes      String? // Notes for follow-up
+
+  // Relations
+  patient          User                  @relation("PatientAppointments", fields: [patientId], references: [id])
+  appointmentType  AppointmentType       @relation(fields: [appointmentTypeId], references: [id])
+  recurringPattern RecurringPattern?     @relation(fields: [recurringPatternId], references: [id])
+  waitingList      WaitingList?
+  appointmentNotes AppointmentNote[]
+  reminders        AppointmentReminder[]
+}
+
+// Appointment status enum
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+  NO_SHOW
+}
+
+// Confirmation status enum
+enum ConfirmationStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
+// Recurring appointment pattern model
+model RecurringPattern {
+  id          String      @id @default(cuid())
+  patternType PatternType
+  frequency   Int // How often the pattern repeats (e.g., every 2 weeks)
+  daysOfWeek  Int[] // Array of days (1-7 for Monday-Sunday)
+  monthlyDay  Int? // Day of month for monthly patterns
+  startDate   DateTime
+  endDate     DateTime? // Optional end date, null means indefinite
+  occurrences Int? // Number of occurrences, alternative to endDate
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  appointments Appointment[]
+}
+
+// Pattern type enum
+enum PatternType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+// Appointment type model
+model AppointmentType {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String // Color code for calendar display
+  duration    Int // Default duration in minutes
+  bufferTime  Int      @default(0) // Buffer time in minutes
+  categoryId  String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  category     AppointmentCategory @relation(fields: [categoryId], references: [id])
+  appointments Appointment[]
+}
+
+// Appointment category model
+model AppointmentCategory {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  departmentId String? // Optional reference to a department
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  appointmentTypes AppointmentType[]
+}
+
+// Waiting list model for queue management
+model WaitingList {
+  id                String          @id @default(cuid())
+  appointmentId     String          @unique
+  queueNumber       Int
+  priority          WaitingPriority @default(NORMAL)
+  estimatedWaitTime Int? // Estimated wait time in minutes
+  actualWaitTime    Int? // Actual wait time in minutes (calculated after service)
+  status            WaitingStatus   @default(WAITING)
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// Waiting priority enum
+enum WaitingPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Waiting status enum
+enum WaitingStatus {
+  WAITING
+  CALLED
+  SERVING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Appointment note model
+model AppointmentNote {
+  id            String   @id @default(cuid())
+  appointmentId String
+  note          String
+  createdBy     String // User who created the note
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// Appointment reminder model
+model AppointmentReminder {
+  id            String          @id @default(cuid())
+  appointmentId String
+  reminderType  ReminderType
+  scheduledTime DateTime
+  sentTime      DateTime?
+  status        ReminderStatus  @default(PENDING)
+  channel       ReminderChannel
+  content       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// Reminder type enum
+enum ReminderType {
+  INITIAL
+  FOLLOWUP
+  CONFIRMATION
+  RESCHEDULE
+}
+
+// Reminder status enum
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// Reminder channel enum
+enum ReminderChannel {
+  EMAIL
+  SMS
+  PUSH
+  WHATSAPP
+}
+
+// ==================== Inventory and Pharmacy Models ====================
+
+// Equipment category model
+model EquipmentCategory {
+  id               String              @id @default(cuid())
+  name             String              @unique
+  description      String?
+  parentCategoryId String?
+  parentCategory   EquipmentCategory?  @relation("SubCategories", fields: [parentCategoryId], references: [id])
+  subCategories    EquipmentCategory[] @relation("SubCategories")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  equipment Equipment[]
+}
+
+// Equipment model for operation theater equipment inventory
+model Equipment {
+  id             String            @id @default(cuid())
+  name           String
+  serialNumber   String            @unique
+  model          String?
+  manufacturer   String
+  categoryId     String
+  category       EquipmentCategory @relation(fields: [categoryId], references: [id])
+  purchaseDate   DateTime
+  purchasePrice  Decimal
+  warrantyExpiry DateTime?
+  location       String // Department or room
+  status         EquipmentStatus   @default(AVAILABLE)
+  specifications Json? // Technical specifications as JSON
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Relations
+  maintenanceHistory MaintenanceRecord[]
+  usageHistory       EquipmentUsage[]
+  warranty           WarrantyInfo?
+}
+
+// Equipment status enum
+enum EquipmentStatus {
+  AVAILABLE
+  IN_USE
+  UNDER_MAINTENANCE
+  OUT_OF_ORDER
+  RETIRED
+}
+
+// Maintenance record model
+model MaintenanceRecord {
+  id              String            @id @default(cuid())
+  equipmentId     String
+  equipment       Equipment         @relation(fields: [equipmentId], references: [id])
+  maintenanceType MaintenanceType
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  technicianId    String? // Reference to a staff member
+  cost            Decimal?
+  description     String
+  status          MaintenanceStatus @default(SCHEDULED)
+  notes           String?
+  partsReplaced   String[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+// Maintenance type enum
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  CALIBRATION
+  INSPECTION
+  UPGRADE
+}
+
+// Maintenance status enum
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+// Equipment usage model
+model EquipmentUsage {
+  id          String      @id @default(cuid())
+  equipmentId String
+  equipment   Equipment   @relation(fields: [equipmentId], references: [id])
+  usedBy      String // User ID
+  usedFor     String // Purpose or procedure
+  startTime   DateTime
+  endTime     DateTime?
+  status      UsageStatus @default(IN_PROGRESS)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// Usage status enum
+enum UsageStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Warranty information model
+model WarrantyInfo {
+  id                String    @id @default(cuid())
+  equipmentId       String    @unique
+  equipment         Equipment @relation(fields: [equipmentId], references: [id])
+  warrantyProvider  String
+  contactInfo       String
+  startDate         DateTime
+  endDate           DateTime
+  terms             String?   @db.Text
+  extendable        Boolean   @default(false)
+  serviceContractId String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Medical gas cylinder model
+model MedicalGasCylinder {
+  id                 String         @id @default(cuid())
+  cylinderNumber     String         @unique
+  gasType            GasType
+  capacity           Float // in liters
+  currentPressure    Float? // in PSI
+  manufacturer       String
+  manufactureDate    DateTime
+  lastInspectionDate DateTime
+  nextInspectionDate DateTime
+  location           String
+  status             CylinderStatus @default(FULL)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  // Relations
+  usageLogs   CylinderUsageLog[]
+  refills     CylinderRefill[]
+  inspections CylinderInspection[]
+}
+
+// Gas type enum
+enum GasType {
+  OXYGEN
+  NITROGEN
+  NITROUS_OXIDE
+  CARBON_DIOXIDE
+  HELIUM
+  AIR
+  MIXED
+}
+
+// Cylinder status enum
+enum CylinderStatus {
+  FULL
+  IN_USE
+  EMPTY
+  UNDER_INSPECTION
+  DEFECTIVE
+}
+
+// Cylinder usage log model
+model CylinderUsageLog {
+  id            String             @id @default(cuid())
+  cylinderId    String
+  cylinder      MedicalGasCylinder @relation(fields: [cylinderId], references: [id])
+  startTime     DateTime
+  endTime       DateTime?
+  startPressure Float // in PSI
+  endPressure   Float? // in PSI
+  usedBy        String // User ID
+  usedFor       String // Purpose or procedure
+  notes         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+// Cylinder refill model
+model CylinderRefill {
+  id                  String             @id @default(cuid())
+  cylinderId          String
+  cylinder            MedicalGasCylinder @relation(fields: [cylinderId], references: [id])
+  refillDate          DateTime
+  supplierName        String
+  invoiceNumber       String?
+  cost                Decimal?
+  pressureAfterRefill Float // in PSI
+  performedBy         String // User ID
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+// Cylinder inspection model
+model CylinderInspection {
+  id                  String             @id @default(cuid())
+  cylinderId          String
+  cylinder            MedicalGasCylinder @relation(fields: [cylinderId], references: [id])
+  inspectionDate      DateTime
+  inspectedBy         String // User ID or external inspector
+  result              InspectionResult
+  certificationNumber String?
+  expiryDate          DateTime
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+// Inspection result enum
+enum InspectionResult {
+  PASSED
+  FAILED
+  CONDITIONAL_PASS
+}
+
+// Maintenance schedule model
+model MaintenanceSchedule {
+  id          String               @id @default(cuid())
+  title       String
+  description String?
+  frequency   MaintenanceFrequency
+  interval    Int // Number of days/weeks/months/years
+  nextDueDate DateTime
+  assignedTo  String? // User ID
+  priority    MaintenancePriority  @default(MEDIUM)
+  status      ScheduleStatus       @default(ACTIVE)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  // Relations
+  tasks MaintenanceTask[]
+}
+
+// Maintenance frequency enum
+enum MaintenanceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUALLY
+  ANNUALLY
+  CUSTOM
+}
+
+// Maintenance priority enum
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Schedule status enum
+enum ScheduleStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+// Maintenance task model
+model MaintenanceTask {
+  id                String              @id @default(cuid())
+  scheduleId        String
+  schedule          MaintenanceSchedule @relation(fields: [scheduleId], references: [id])
+  title             String
+  description       String?
+  estimatedDuration Int? // in minutes
+  assignedTo        String? // User ID
+  status            TaskStatus          @default(PENDING)
+  startDate         DateTime?
+  completedDate     DateTime?
+  notes             String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  parts TaskPart[]
+}
+
+// Task status enum
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+// Task part model
+model TaskPart {
+  id         String          @id @default(cuid())
+  taskId     String
+  task       MaintenanceTask @relation(fields: [taskId], references: [id])
+  partName   String
+  partNumber String?
+  quantity   Int
+  cost       Decimal?
+  replaced   Boolean         @default(false)
+  notes      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+}
+
+// Medicine model
+model Medicine {
+  id                   String   @id @default(cuid())
+  name                 String
+  genericName          String
+  brandName            String?
+  manufacturer         String
+  description          String?  @db.Text
+  dosageForm           String // tablet, capsule, syrup, etc.
+  strength             String // e.g., 500mg, 10ml
+  therapeuticCategory  String?
+  prescriptionRequired Boolean  @default(true)
+  code                 String? // NDC or other code
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  batches                 MedicineBatch[]
+  prescriptionMedications PrescriptionMedication[]
+}
+
+// Prescription model
+model Prescription {
+  id                 String             @id @default(cuid())
+  prescriptionNumber String             @unique
+  patientId          String
+  doctorId           String
+  prescribedDate     DateTime
+  startDate          DateTime
+  endDate            DateTime?
+  status             PrescriptionStatus @default(ACTIVE)
+  instructions       String?
+  diagnosis          String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relations
+  patient       Patient                  @relation(fields: [patientId], references: [id])
+  doctor        Doctor                   @relation(fields: [doctorId], references: [id])
+  medications   PrescriptionMedication[]
+  dispensations MedicationDispensation[]
+  schedules     MedicationSchedule[]
+}
+
+// Prescription status enum
+enum PrescriptionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+// Prescription medication model
+model PrescriptionMedication {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicationId   String
+  medication     Medicine     @relation(fields: [medicationId], references: [id])
+  dosage         String
+  frequency      String
+  duration       String?
+  route          String
+  instructions   String?
+  quantity       Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// Medication dispensation model
+model MedicationDispensation {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id])
+  dispensedBy    String // User ID
+  dispensedAt    DateTime     @default(now())
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// Medication schedule model
+model MedicationSchedule {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  startDate      DateTime
+  endDate        DateTime?
+  timeOfDay      String[] // Array of times (e.g., "08:00", "14:00", "20:00")
+  daysOfWeek     Int[] // 0-6 for Sunday-Saturday
+  instructions   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  reminders MedicationReminder[]
+}
+
+// Medication reminder model
+model MedicationReminder {
+  id                 String                       @id @default(cuid())
+  scheduleId         String
+  schedule           MedicationSchedule           @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduledTime      DateTime
+  sentTime           DateTime?
+  status             MedicationReminderStatus     @default(PENDING)
+  channel            ReminderChannel
+  content            String?
+  confirmationTime   DateTime?
+  confirmationStatus MedicationConfirmationStatus @default(PENDING)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+}
+
+// Medication reminder status enum
+enum MedicationReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// Medication confirmation status enum
+enum MedicationConfirmationStatus {
+  PENDING
+  CONFIRMED
+  MISSED
+  SKIPPED
+}
+
+// Medicine batch model
+model MedicineBatch {
+  id                String      @id @default(cuid())
+  medicineId        String
+  medicine          Medicine    @relation(fields: [medicineId], references: [id])
+  batchNumber       String
+  expiryDate        DateTime
+  manufacturingDate DateTime
+  quantity          Int
+  unitPrice         Decimal
+  sellingPrice      Decimal
+  supplier          String
+  receivedDate      DateTime
+  receivedBy        String // User ID
+  location          String // Storage location
+  status            BatchStatus @default(AVAILABLE)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Batch status enum
+enum BatchStatus {
+  AVAILABLE
+  LOW_STOCK
+  OUT_OF_STOCK
+  EXPIRED
+  RECALLED
+}
+
+// ==================== Billing and Accounting Models ====================
+
+// Invoice model
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  patientId      String // Reference to a patient
+  issuedDate     DateTime      @default(now())
+  dueDate        DateTime
+  totalAmount    Decimal
+  discountAmount Decimal       @default(0)
+  taxAmount      Decimal       @default(0)
+  paidAmount     Decimal       @default(0)
+  status         InvoiceStatus @default(PENDING)
+  notes          String?
+  createdBy      String // User ID
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  items     InvoiceItem[]
+  payments  Payment[]
+  discounts Discount[]
+}
+
+// Invoice status enum
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+// Invoice item model
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  itemType    String // service, procedure, medicine, etc.
+  itemId      String // Reference to the specific item
+  description String
+  quantity    Int
+  unitPrice   Decimal
+  discount    Decimal  @default(0)
+  tax         Decimal  @default(0)
+  totalAmount Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Payment model
+model Payment {
+  id             String        @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice       @relation(fields: [invoiceId], references: [id])
+  amount         Decimal
+  paymentDate    DateTime      @default(now())
+  paymentMethod  PaymentMethod
+  transactionId  String?
+  receiptNumber  String        @unique
+  notes          String?
+  status         PaymentStatus @default(COMPLETED)
+  refundedAmount Decimal       @default(0)
+  refundDate     DateTime?
+  refundReason   String?
+  createdBy      String // User ID
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// Payment method enum
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  CHEQUE
+  ONLINE
+  INSURANCE
+  MOBILE_PAYMENT
+}
+
+// Payment status enum
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// Discount model
+model Discount {
+  id           String       @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id])
+  discountType DiscountType
+  amount       Decimal
+  percentage   Float?
+  reason       String?
+  approvedBy   String // User ID
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+// Discount type enum
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+  SPECIAL
+  EMPLOYEE
+  SENIOR_CITIZEN
+  CHARITY
+}
+
+// Insurance claim model
+model InsuranceClaim {
+  id              String      @id @default(cuid())
+  claimNumber     String      @unique
+  patientId       String // Reference to a patient
+  insuranceId     String // Reference to patient insurance
+  invoiceId       String? // Optional reference to invoice
+  dateOfService   DateTime
+  submissionDate  DateTime    @default(now())
+  claimAmount     Decimal
+  approvedAmount  Decimal?
+  status          ClaimStatus @default(SUBMITTED)
+  rejectionReason String?
+  notes           String?
+  createdBy       String // User ID
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  documents ClaimDocument[]
+}
+
+// Claim status enum
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  IN_PROCESS
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  APPEALED
+  SETTLED
+}
+
+// Claim document model
+model ClaimDocument {
+  id          String         @id @default(cuid())
+  claimId     String
+  claim       InsuranceClaim @relation(fields: [claimId], references: [id])
+  title       String
+  description String?
+  fileType    String // pdf, image, etc.
+  filePath    String
+  uploadedBy  String // User ID
+  uploadedAt  DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+// Financial transaction model
+model FinancialTransaction {
+  id                String          @id @default(cuid())
+  transactionNumber String          @unique
+  transactionType   TransactionType
+  amount            Decimal
+  description       String
+  referenceId       String? // Reference to related entity (invoice, payment, etc.)
+  referenceType     String? // Type of the related entity
+  date              DateTime        @default(now())
+  createdBy         String // User ID
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  ledgerEntries LedgerEntry[]
+}
+
+// Transaction type enum
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  ADJUSTMENT
+  REFUND
+}
+
+// Ledger entry model
+model LedgerEntry {
+  id            String               @id @default(cuid())
+  transactionId String
+  transaction   FinancialTransaction @relation(fields: [transactionId], references: [id])
+  accountId     String // Reference to chart of accounts
+  amount        Decimal
+  isDebit       Boolean
+  description   String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+// Expense model
+model Expense {
+  id               String         @id @default(cuid())
+  expenseNumber    String         @unique
+  amount           Decimal
+  description      String
+  expenseDate      DateTime
+  category         String
+  paymentMethod    PaymentMethod
+  paymentReference String?
+  vendorName       String?
+  vendorId         String? // Reference to vendor if available
+  approvedBy       String? // User ID
+  approvalStatus   ApprovalStatus @default(PENDING)
+  receiptPath      String?
+  notes            String?
+  createdBy        String // User ID
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+// Approval status enum
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ==================== Laboratory and Radiology Models ====================
+
+// Test catalog model
+model TestCatalog {
+  id             String       @id @default(cuid())
+  name           String
+  code           String       @unique
+  category       TestCategory
+  description    String?
+  price          Decimal
+  duration       Int? // Estimated duration in minutes
+  preparation    String? // Patient preparation instructions
+  sampleRequired Boolean      @default(true)
+  sampleType     String? // blood, urine, etc.
+  reportTemplate String? // Template for reporting results
+  department     String // lab, radiology, etc.
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  tests           Test[]
+  referenceRanges ReferenceRange[]
+}
+
+// Test category enum
+enum TestCategory {
+  HEMATOLOGY
+  BIOCHEMISTRY
+  MICROBIOLOGY
+  IMMUNOLOGY
+  PATHOLOGY
+  RADIOLOGY
+  CARDIOLOGY
+  NEUROLOGY
+  OTHER
+}
+
+// Test model
+model Test {
+  id            String       @id @default(cuid())
+  testCatalogId String
+  testCatalog   TestCatalog  @relation(fields: [testCatalogId], references: [id])
+  patientId     String // Reference to a patient
+  requestedBy   String // User ID (doctor)
+  requestedAt   DateTime     @default(now())
+  scheduledAt   DateTime?
+  status        TestStatus   @default(REQUESTED)
+  priority      TestPriority @default(ROUTINE)
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  samples        Sample[]
+  results        TestResult[]
+  criticalValues CriticalValue[]
+}
+
+// Test status enum
+enum TestStatus {
+  REQUESTED
+  SCHEDULED
+  SAMPLE_COLLECTED
+  IN_PROGRESS
+  COMPLETED
+  REPORTED
+  VERIFIED
+  DELIVERED
+  CANCELLED
+}
+
+// Test priority enum
+enum TestPriority {
+  ROUTINE
+  URGENT
+  STAT
+}
+
+// Sample model
+model Sample {
+  id              String       @id @default(cuid())
+  testId          String
+  test            Test         @relation(fields: [testId], references: [id])
+  sampleType      String // blood, urine, etc.
+  sampleId        String       @unique // Barcode or unique identifier
+  collectedBy     String // User ID
+  collectedAt     DateTime
+  receivedBy      String? // User ID
+  receivedAt      DateTime?
+  status          SampleStatus @default(COLLECTED)
+  rejectionReason String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// Sample status enum
+enum SampleStatus {
+  COLLECTED
+  IN_TRANSIT
+  RECEIVED
+  PROCESSING
+  ANALYZED
+  REJECTED
+  DISPOSED
+}
+
+// Test result model
+model TestResult {
+  id             String    @id @default(cuid())
+  testId         String
+  test           Test      @relation(fields: [testId], references: [id])
+  parameter      String
+  value          String
+  unit           String?
+  referenceRange String?
+  interpretation String?
+  isAbnormal     Boolean   @default(false)
+  isCritical     Boolean   @default(false)
+  performedBy    String // User ID
+  performedAt    DateTime  @default(now())
+  verifiedBy     String? // User ID
+  verifiedAt     DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Reference range model
+model ReferenceRange {
+  id            String      @id @default(cuid())
+  testCatalogId String
+  testCatalog   TestCatalog @relation(fields: [testCatalogId], references: [id])
+  parameter     String
+  gender        String? // male, female, all
+  minAge        Int? // in years
+  maxAge        Int? // in years
+  lowerLimit    String?
+  upperLimit    String?
+  textualRange  String? // For non-numeric ranges
+  unit          String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Critical value model
+model CriticalValue {
+  id             String    @id @default(cuid())
+  testId         String
+  test           Test      @relation(fields: [testId], references: [id])
+  parameter      String
+  value          String
+  reportedBy     String // User ID
+  reportedAt     DateTime  @default(now())
+  reportedTo     String // User ID (doctor)
+  acknowledgedAt DateTime?
+  action         String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Imaging study model
+model ImagingStudy {
+  id          String       @id @default(cuid())
+  patientId   String // Reference to a patient
+  studyType   String // X-ray, CT, MRI, etc.
+  bodyPart    String
+  requestedBy String // User ID (doctor)
+  requestedAt DateTime     @default(now())
+  scheduledAt DateTime?
+  performedAt DateTime?
+  status      StudyStatus  @default(REQUESTED)
+  priority    TestPriority @default(ROUTINE)
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  images ImagingImage[]
+  report ImagingReport?
+}
+
+// Study status enum
+enum StudyStatus {
+  REQUESTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  REPORTED
+  VERIFIED
+  DELIVERED
+  CANCELLED
+}
+
+// Imaging image model
+model ImagingImage {
+  id            String       @id @default(cuid())
+  studyId       String
+  study         ImagingStudy @relation(fields: [studyId], references: [id])
+  imageType     String // DICOM, JPEG, etc.
+  filePath      String
+  thumbnailPath String?
+  sequence      Int
+  metadata      Json? // DICOM metadata as JSON
+  takenAt       DateTime
+  takenBy       String // User ID (technician)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// Imaging report model
+model ImagingReport {
+  id             String       @id @default(cuid())
+  studyId        String       @unique
+  study          ImagingStudy @relation(fields: [studyId], references: [id])
+  findings       String       @db.Text
+  impression     String       @db.Text
+  recommendation String?      @db.Text
+  reportedBy     String // User ID (radiologist)
+  reportedAt     DateTime     @default(now())
+  verifiedBy     String? // User ID
+  verifiedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// Lab equipment model
+model LabEquipment {
+  id              String          @id @default(cuid())
+  name            String
+  model           String
+  serialNumber    String          @unique
+  manufacturer    String
+  location        String // Lab section or room
+  purchaseDate    DateTime
+  lastCalibration DateTime?
+  nextCalibration DateTime?
+  status          EquipmentStatus @default(AVAILABLE)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  calibrations EquipmentCalibration[]
+}
+
+// Equipment calibration model
+model EquipmentCalibration {
+  id                 String            @id @default(cuid())
+  equipmentId        String
+  equipment          LabEquipment      @relation(fields: [equipmentId], references: [id])
+  calibratedBy       String // User ID or external technician
+  calibratedAt       DateTime
+  result             CalibrationResult
+  notes              String?
+  nextCalibrationDue DateTime
+  certificateNumber  String?
+  certificatePath    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+// Calibration result enum
+enum CalibrationResult {
+  PASSED
+  FAILED
+  ADJUSTED
+}
+
+// ==================== Ambulance Management Models ====================
+
+// Ambulance model
+model Ambulance {
+  id                 String          @id @default(cuid())
+  registrationNumber String          @unique
+  vehicleModel       String
+  vehicleType        AmbulanceType
+  manufacturingYear  Int
+  capacity           Int // Number of patients
+  features           String[] // oxygen, ventilator, etc.
+  status             AmbulanceStatus @default(AVAILABLE)
+  lastMaintenance    DateTime?
+  nextMaintenance    DateTime?
+  purchaseDate       DateTime
+  insuranceExpiry    DateTime
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relations
+  equipment          AmbulanceEquipment[]
+  drivers            AmbulanceDriver[]
+  dispatches         AmbulanceDispatch[]
+  maintenanceRecords AmbulanceMaintenanceRecord[]
+}
+
+// Ambulance type enum
+enum AmbulanceType {
+  BASIC
+  ADVANCED
+  MOBILE_ICU
+  NEONATAL
+  PATIENT_TRANSPORT
+}
+
+// Ambulance status enum
+enum AmbulanceStatus {
+  AVAILABLE
+  IN_SERVICE
+  UNDER_MAINTENANCE
+  OUT_OF_SERVICE
+  RESERVED
+}
+
+// Ambulance equipment model
+model AmbulanceEquipment {
+  id             String          @id @default(cuid())
+  ambulanceId    String
+  ambulance      Ambulance       @relation(fields: [ambulanceId], references: [id])
+  name           String
+  serialNumber   String?
+  expiryDate     DateTime?
+  lastInspection DateTime?
+  status         EquipmentStatus @default(AVAILABLE)
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// Ambulance driver model
+model AmbulanceDriver {
+  id            String    @id @default(cuid())
+  ambulanceId   String
+  ambulance     Ambulance @relation(fields: [ambulanceId], references: [id])
+  driverId      String // Reference to a staff member
+  licenseNumber String
+  licenseExpiry DateTime
+  isAvailable   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  dispatches AmbulanceDispatch[]
+}
+
+// Ambulance dispatch model
+model AmbulanceDispatch {
+  id             String           @id @default(cuid())
+  ambulanceId    String
+  ambulance      Ambulance        @relation(fields: [ambulanceId], references: [id])
+  driverId       String
+  driver         AmbulanceDriver  @relation(fields: [driverId], references: [id])
+  patientId      String? // Optional reference to a patient
+  requestedBy    String // User ID
+  requestedAt    DateTime         @default(now())
+  dispatchedAt   DateTime?
+  arrivedAt      DateTime?
+  completedAt    DateTime?
+  pickupLocation String
+  dropLocation   String
+  purpose        String
+  priority       DispatchPriority @default(NORMAL)
+  status         DispatchStatus   @default(REQUESTED)
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  patientVitals  PatientVital[]
+  billingDetails AmbulanceBilling?
+}
+
+// Dispatch priority enum
+enum DispatchPriority {
+  LOW
+  NORMAL
+  HIGH
+  EMERGENCY
+}
+
+// Dispatch status enum
+enum DispatchStatus {
+  REQUESTED
+  ASSIGNED
+  DISPATCHED
+  EN_ROUTE_TO_PICKUP
+  ARRIVED_AT_PICKUP
+  PATIENT_LOADED
+  EN_ROUTE_TO_DESTINATION
+  ARRIVED_AT_DESTINATION
+  COMPLETED
+  CANCELLED
+}
+
+// Patient vital model
+model PatientVital {
+  id                     String            @id @default(cuid())
+  dispatchId             String
+  dispatch               AmbulanceDispatch @relation(fields: [dispatchId], references: [id])
+  temperature            Float?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  heartRate              Int?
+  respiratoryRate        Int?
+  oxygenSaturation       Float?
+  glucoseLevel           Float?
+  consciousness          String? // AVPU scale
+  recordedAt             DateTime          @default(now())
+  recordedBy             String // User ID
+  notes                  String?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+}
+
+// Ambulance maintenance record model
+model AmbulanceMaintenanceRecord {
+  id                 String          @id @default(cuid())
+  ambulanceId        String
+  ambulance          Ambulance       @relation(fields: [ambulanceId], references: [id])
+  maintenanceType    MaintenanceType
+  description        String
+  performedBy        String // User ID or external service
+  performedAt        DateTime
+  cost               Decimal?
+  odometer           Int? // Vehicle odometer reading
+  nextMaintenanceDue DateTime?
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+// Ambulance billing model
+model AmbulanceBilling {
+  id                    String            @id @default(cuid())
+  dispatchId            String            @unique
+  dispatch              AmbulanceDispatch @relation(fields: [dispatchId], references: [id])
+  baseCharge            Decimal
+  distanceCharge        Decimal
+  waitingCharge         Decimal?
+  equipmentCharge       Decimal?
+  totalAmount           Decimal
+  insuranceCovered      Boolean           @default(false)
+  insuranceProvider     String?
+  insurancePolicyNumber String?
+  paymentStatus         PaymentStatus     @default(PENDING)
+  invoiceNumber         String?           @unique
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+// ==================== Attendance Tracking Models ====================
+
+// Biometric device model
+model BiometricDevice {
+  id           String       @id @default(cuid())
+  deviceId     String       @unique // Device serial number or ID
+  name         String
+  type         DeviceType
+  location     String
+  ipAddress    String?
+  port         Int?
+  apiKey       String?
+  status       DeviceStatus @default(ACTIVE)
+  lastSyncTime DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  logs           BiometricLog[]
+  configurations DeviceConfiguration[]
+}
+
+// Device type enum
+enum DeviceType {
+  FINGERPRINT
+  FACE_RECOGNITION
+  CARD_READER
+  MULTI_BIOMETRIC
+}
+
+// Device status enum
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  DISCONNECTED
+}
+
+// Device configuration model
+model DeviceConfiguration {
+  id          String          @id @default(cuid())
+  deviceId    String
+  device      BiometricDevice @relation(fields: [deviceId], references: [id])
+  configKey   String
+  configValue String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([deviceId, configKey])
+}
+
+// Biometric template model
+model BiometricTemplate {
+  id           String         @id @default(cuid())
+  userId       String // Reference to a user
+  templateType TemplateType
+  templateData Bytes // Encrypted biometric template data
+  quality      Int? // Quality score (0-100)
+  enrolledAt   DateTime       @default(now())
+  enrolledBy   String // User ID who enrolled
+  status       TemplateStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  verifications BiometricVerification[]
+}
+
+// Template type enum
+enum TemplateType {
+  FINGERPRINT_LEFT_THUMB
+  FINGERPRINT_LEFT_INDEX
+  FINGERPRINT_RIGHT_THUMB
+  FINGERPRINT_RIGHT_INDEX
+  FACE
+  IRIS
+  VOICE
+}
+
+// Template status enum
+enum TemplateStatus {
+  ACTIVE
+  INACTIVE
+  NEEDS_REENROLLMENT
+}
+
+// Biometric log model
+model BiometricLog {
+  id                 String             @id @default(cuid())
+  deviceId           String
+  device             BiometricDevice    @relation(fields: [deviceId], references: [id])
+  userId             String? // Reference to a user, nullable for failed attempts
+  logType            LogType
+  timestamp          DateTime           @default(now())
+  direction          Direction?
+  verificationMethod VerificationMethod
+  confidenceScore    Float?
+  status             VerificationStatus
+  ipAddress          String?
+  notes              String?
+  createdAt          DateTime           @default(now())
+
+  // Relations
+  verification BiometricVerification?
+}
+
+// Log type enum
+enum LogType {
+  ENTRY
+  EXIT
+  VERIFICATION
+  ENROLLMENT
+  DEVICE_STATUS
+}
+
+// Direction enum
+enum Direction {
+  IN
+  OUT
+}
+
+// Verification method enum
+enum VerificationMethod {
+  FINGERPRINT
+  FACE
+  CARD
+  PIN
+  MANUAL
+}
+
+// Verification status enum
+enum VerificationStatus {
+  SUCCESS
+  FAILED
+  MANUAL_OVERRIDE
+  EXCEPTION
+}
+
+// Biometric verification model
+model BiometricVerification {
+  id              String            @id @default(cuid())
+  logId           String            @unique
+  log             BiometricLog      @relation(fields: [logId], references: [id])
+  templateId      String
+  template        BiometricTemplate @relation(fields: [templateId], references: [id])
+  confidenceScore Float
+  threshold       Float
+  matched         Boolean
+  verifiedAt      DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+}
+
+// Shift model
+model Shift {
+  id            String   @id @default(cuid())
+  name          String
+  startTime     String // Time in HH:MM format
+  endTime       String // Time in HH:MM format
+  durationHours Float
+  isNightShift  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  assignments ShiftAssignment[]
+}
+
+// Shift assignment model
+model ShiftAssignment {
+  id            String    @id @default(cuid())
+  userId        String // Reference to a user
+  shiftId       String
+  shift         Shift     @relation(fields: [shiftId], references: [id])
+  startDate     DateTime
+  endDate       DateTime?
+  isRecurring   Boolean   @default(false)
+  recurringDays Int[] // 0-6 for Sunday-Saturday
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  attendanceRecords AttendanceRecord[]
+  timeOffRequests   TimeOffRequest[]
+}
+
+// Attendance record model
+model AttendanceRecord {
+  id                    String           @id @default(cuid())
+  userId                String // Reference to a user
+  shiftAssignmentId     String
+  shiftAssignment       ShiftAssignment  @relation(fields: [shiftAssignmentId], references: [id])
+  date                  DateTime
+  checkInTime           DateTime?
+  checkOutTime          DateTime?
+  status                AttendanceStatus @default(PRESENT)
+  lateMinutes           Int?
+  earlyDepartureMinutes Int?
+  overtimeMinutes       Int?
+  notes                 String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+}
+
+// Attendance status enum
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKEND
+}
+
+// Time off request model
+model TimeOffRequest {
+  id                String          @id @default(cuid())
+  userId            String // Reference to a user
+  shiftAssignmentId String
+  shiftAssignment   ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
+  startDate         DateTime
+  endDate           DateTime
+  type              TimeOffType
+  reason            String
+  status            ApprovalStatus  @default(PENDING)
+  approvedBy        String? // User ID
+  approvedAt        DateTime?
+  rejectionReason   String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Time off type enum
+enum TimeOffType {
+  VACATION
+  SICK
+  PERSONAL
+  BEREAVEMENT
+  MATERNITY
+  PATERNITY
+  UNPAID
+  COMPENSATORY
+}
+
+// ==================== TPA (Third Party Administrator) Models ====================
+
+// TPA organization model
+model TPAOrganization {
+  id                String    @id @default(cuid())
+  name              String
+  code              String    @unique
+  address           String
+  city              String
+  state             String
+  country           String
+  postalCode        String
+  contactPerson     String
+  contactEmail      String
+  contactPhone      String
+  website           String?
+  status            TPAStatus @default(ACTIVE)
+  contractStartDate DateTime
+  contractEndDate   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  policies          InsurancePolicy[]
+  preAuthorizations PreAuthorization[]
+  claims            TPAClaim[]
+}
+
+// TPA status enum
+enum TPAStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+// Insurance policy model
+model InsurancePolicy {
+  id              String          @id @default(cuid())
+  tpaId           String
+  tpa             TPAOrganization @relation(fields: [tpaId], references: [id])
+  policyNumber    String          @unique
+  policyName      String
+  policyType      PolicyType
+  coverageDetails String          @db.Text
+  startDate       DateTime
+  endDate         DateTime
+  status          PolicyStatus    @default(ACTIVE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  coverages       PolicyCoverage[]
+  patientPolicies PatientPolicy[]
+}
+
+// Policy type enum
+enum PolicyType {
+  INDIVIDUAL
+  FAMILY
+  GROUP
+  CORPORATE
+  SENIOR_CITIZEN
+  CRITICAL_ILLNESS
+}
+
+// Policy status enum
+enum PolicyStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+// Policy coverage model
+model PolicyCoverage {
+  id                 String          @id @default(cuid())
+  policyId           String
+  policy             InsurancePolicy @relation(fields: [policyId], references: [id])
+  serviceType        String // consultation, surgery, medication, etc.
+  coveragePercentage Float
+  coverageAmount     Decimal?
+  annualLimit        Decimal?
+  lifetimeLimit      Decimal?
+  waitingPeriod      Int? // in days
+  exclusions         String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+// Patient policy model
+model PatientPolicy {
+  id                   String          @id @default(cuid())
+  patientId            String // Reference to a patient
+  policyId             String
+  policy               InsurancePolicy @relation(fields: [policyId], references: [id])
+  membershipNumber     String
+  relationToSubscriber String? // self, spouse, child, etc.
+  startDate            DateTime
+  endDate              DateTime
+  status               PolicyStatus    @default(ACTIVE)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  // Relations
+  preAuthorizations PreAuthorization[]
+  claims            TPAClaim[]
+  eligibilityChecks EligibilityCheck[]
+}
+
+// Pre-authorization model
+model PreAuthorization {
+  id                  String              @id @default(cuid())
+  patientPolicyId     String
+  patientPolicy       PatientPolicy       @relation(fields: [patientPolicyId], references: [id])
+  tpaId               String
+  tpa                 TPAOrganization     @relation(fields: [tpaId], references: [id])
+  authorizationNumber String              @unique
+  requestDate         DateTime            @default(now())
+  serviceType         String // consultation, surgery, medication, etc.
+  diagnosis           String?
+  procedureCode       String?
+  estimatedCost       Decimal
+  approvedAmount      Decimal?
+  status              AuthorizationStatus @default(PENDING)
+  validFrom           DateTime?
+  validTo             DateTime?
+  rejectionReason     String?
+  notes               String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  documents AuthorizationDocument[]
+}
+
+// Authorization status enum
+enum AuthorizationStatus {
+  PENDING
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+// Authorization document model
+model AuthorizationDocument {
+  id                 String           @id @default(cuid())
+  preAuthorizationId String
+  preAuthorization   PreAuthorization @relation(fields: [preAuthorizationId], references: [id])
+  title              String
+  description        String?
+  fileType           String // pdf, image, etc.
+  filePath           String
+  uploadedBy         String // User ID
+  uploadedAt         DateTime         @default(now())
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+// TPA claim model
+model TPAClaim {
+  id              String          @id @default(cuid())
+  patientPolicyId String
+  patientPolicy   PatientPolicy   @relation(fields: [patientPolicyId], references: [id])
+  tpaId           String
+  tpa             TPAOrganization @relation(fields: [tpaId], references: [id])
+  claimNumber     String          @unique
+  invoiceId       String? // Reference to an invoice
+  serviceDate     DateTime
+  submissionDate  DateTime        @default(now())
+  diagnosis       String?
+  procedureCode   String?
+  claimAmount     Decimal
+  approvedAmount  Decimal?
+  status          ClaimStatus     @default(SUBMITTED)
+  settlementDate  DateTime?
+  rejectionReason String?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  documents SubsidyClaimDocument[]
+  payments  ClaimPayment[]
+}
+
+// Claim payment model
+model ClaimPayment {
+  id            String   @id @default(cuid())
+  claimId       String
+  claim         TPAClaim @relation(fields: [claimId], references: [id])
+  amount        Decimal
+  paymentDate   DateTime
+  paymentMethod String
+  transactionId String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Eligibility check model
+model EligibilityCheck {
+  id                 String        @id @default(cuid())
+  patientPolicyId    String
+  patientPolicy      PatientPolicy @relation(fields: [patientPolicyId], references: [id])
+  serviceType        String // consultation, surgery, medication, etc.
+  checkDate          DateTime      @default(now())
+  isEligible         Boolean
+  coveragePercentage Float?
+  coverageAmount     Decimal?
+  remainingBenefit   Decimal?
+  notes              String?
+  checkedBy          String // User ID
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+// ==================== Duty Roster Models ====================
+
+// Roster model
+model Roster {
+  id           String       @id @default(cuid())
+  name         String
+  departmentId String? // Reference to a department
+  startDate    DateTime
+  endDate      DateTime
+  status       RosterStatus @default(DRAFT)
+  createdBy    String // User ID
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  shifts       RosterShift[]
+  swapRequests ShiftSwapRequest[]
+}
+
+// Roster status enum
+enum RosterStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Roster shift model
+model RosterShift {
+  id        String   @id @default(cuid())
+  rosterId  String
+  roster    Roster   @relation(fields: [rosterId], references: [id])
+  userId    String // Reference to a user
+  shiftType String // morning, evening, night, etc.
+  startTime DateTime
+  endTime   DateTime
+  isOnCall  Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  swapRequests   ShiftSwapRequest[] @relation("FromShift")
+  swapRequestsTo ShiftSwapRequest[] @relation("ToShift")
+}
+
+// Shift swap request model
+model ShiftSwapRequest {
+  id              String      @id @default(cuid())
+  rosterId        String
+  roster          Roster      @relation(fields: [rosterId], references: [id])
+  fromShiftId     String
+  fromShift       RosterShift @relation("FromShift", fields: [fromShiftId], references: [id])
+  toShiftId       String
+  toShift         RosterShift @relation("ToShift", fields: [toShiftId], references: [id])
+  requestedBy     String // User ID
+  requestedAt     DateTime    @default(now())
+  reason          String?
+  status          SwapStatus  @default(PENDING)
+  respondedAt     DateTime?
+  approvedBy      String? // User ID (manager)
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// Swap status enum
+enum SwapStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  APPROVED
+  DENIED
+}
+
+// Duty preference model
+model DutyPreference {
+  id                 String   @id @default(cuid())
+  userId             String // Reference to a user
+  preferredShifts    String[] // morning, evening, night, etc.
+  preferredDays      Int[] // 0-6 for Sunday-Saturday
+  maxConsecutiveDays Int      @default(5)
+  minRestHours       Int      @default(12)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// On-call schedule model
+model OnCallSchedule {
+  id           String   @id @default(cuid())
+  departmentId String? // Reference to a department
+  userId       String // Reference to a user
+  startTime    DateTime
+  endTime      DateTime
+  isPrimary    Boolean  @default(true)
+  backupUserId String? // Reference to a backup user
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Holiday model
+model Holiday {
+  id            String   @id @default(cuid())
+  name          String
+  date          DateTime
+  description   String?
+  isRecurring   Boolean  @default(false)
+  recurringRule String? // iCal RRule format
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ==================== Human Resource Models ====================
+
+// Employee model
+model Employee {
+  id               String         @id @default(cuid())
+  userId           String         @unique // Reference to a user
+  employeeId       String         @unique // Employee ID
+  departmentId     String? // Reference to a department
+  designationId    String // Reference to a designation
+  joiningDate      DateTime
+  probationEndDate DateTime?
+  confirmationDate DateTime?
+  resignationDate  DateTime?
+  terminationDate  DateTime?
+  status           EmployeeStatus @default(ACTIVE)
+  employmentType   EmploymentType @default(FULL_TIME)
+  reportingTo      String? // User ID of manager
+  workLocation     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  designation       Designation          @relation(fields: [designationId], references: [id])
+  contracts         EmploymentContract[]
+  salaries          SalaryDetail[]
+  documents         EmployeeDocument[]
+  educations        EmployeeEducation[]
+  experiences       EmployeeExperience[]
+  emergencyContacts EmergencyContact[]
+  leaves            LeaveRequest[]
+  appraisals        EmployeeAppraisal[]
+  trainings         EmployeeTraining[]
+}
+
+// Employee status enum
+enum EmployeeStatus {
+  ACTIVE
+  PROBATION
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+  RESIGNED
+  RETIRED
+}
+
+// Employment type enum
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERN
+  CONSULTANT
+}
+
+// Designation model
+model Designation {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  departmentId String? // Reference to a department
+  level        Int? // Organizational level
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  employees Employee[]
+}
+
+// Employment contract model
+model EmploymentContract {
+  id           String         @id @default(cuid())
+  employeeId   String
+  employee     Employee       @relation(fields: [employeeId], references: [id])
+  contractType ContractType
+  startDate    DateTime
+  endDate      DateTime?
+  documentPath String?
+  terms        String?        @db.Text
+  status       ContractStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+// Contract type enum
+enum ContractType {
+  PERMANENT
+  FIXED_TERM
+  PROBATION
+  INTERNSHIP
+  CONSULTANT
+}
+
+// Contract status enum
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  RENEWED
+}
+
+// Salary detail model
+model SalaryDetail {
+  id               String           @id @default(cuid())
+  employeeId       String
+  employee         Employee         @relation(fields: [employeeId], references: [id])
+  basicSalary      Decimal
+  allowances       Json? // JSON object with allowance details
+  deductions       Json? // JSON object with deduction details
+  effectiveFrom    DateTime
+  effectiveTo      DateTime?
+  currency         String           @default("USD")
+  paymentFrequency PaymentFrequency @default(MONTHLY)
+  bankName         String?
+  accountNumber    String?
+  taxInformation   String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  payslips Payslip[]
+}
+
+// Payment frequency enum
+enum PaymentFrequency {
+  WEEKLY
+  BI_WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+// Payslip model
+model Payslip {
+  id             String        @id @default(cuid())
+  salaryDetailId String
+  salaryDetail   SalaryDetail  @relation(fields: [salaryDetailId], references: [id])
+  payPeriodStart DateTime
+  payPeriodEnd   DateTime
+  paymentDate    DateTime
+  basicSalary    Decimal
+  allowances     Json? // JSON object with allowance details
+  deductions     Json? // JSON object with deduction details
+  taxAmount      Decimal
+  netAmount      Decimal
+  status         PayslipStatus @default(DRAFT)
+  documentPath   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// Payslip status enum
+enum PayslipStatus {
+  DRAFT
+  GENERATED
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// Employee document model
+model EmployeeDocument {
+  id           String    @id @default(cuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  documentType String // resume, certificate, id proof, etc.
+  title        String
+  description  String?
+  filePath     String
+  fileType     String // pdf, image, etc.
+  isVerified   Boolean   @default(false)
+  verifiedBy   String? // User ID
+  verifiedAt   DateTime?
+  expiryDate   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Employee education model
+model EmployeeEducation {
+  id           String    @id @default(cuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  institution  String
+  degree       String
+  fieldOfStudy String
+  startDate    DateTime
+  endDate      DateTime?
+  grade        String?
+  activities   String?
+  description  String?
+  isVerified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Employee experience model
+model EmployeeExperience {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  company     String
+  position    String
+  location    String?
+  startDate   DateTime
+  endDate     DateTime?
+  description String?
+  isVerified  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Emergency contact model
+model EmergencyContact {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id])
+  name           String
+  relationship   String
+  phone          String
+  alternatePhone String?
+  email          String?
+  address        String?
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Leave request model
+model LeaveRequest {
+  id              String      @id @default(cuid())
+  employeeId      String
+  employee        Employee    @relation(fields: [employeeId], references: [id])
+  leaveTypeId     String
+  leaveType       LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Float
+  reason          String
+  status          LeaveStatus @default(PENDING)
+  approvedBy      String? // User ID
+  approvedAt      DateTime?
+  rejectionReason String?
+  attachmentPath  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// Leave type model
+model LeaveType {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  allowedDays     Int
+  isPaid          Boolean  @default(true)
+  carryForward    Boolean  @default(false)
+  maxCarryForward Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  leaveRequests LeaveRequest[]
+}
+
+// Leave status enum
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Employee appraisal model
+model EmployeeAppraisal {
+  id                 String          @id @default(cuid())
+  employeeId         String
+  employee           Employee        @relation(fields: [employeeId], references: [id])
+  appraisalPeriod    String // e.g., "2023 Q1"
+  reviewerId         String // User ID of reviewer
+  reviewDate         DateTime
+  performanceRating  Float // e.g., 1-5 scale
+  strengths          String?
+  areasOfImprovement String?
+  goals              String?
+  comments           String?
+  employeeComments   String?
+  status             AppraisalStatus @default(DRAFT)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+// Appraisal status enum
+enum AppraisalStatus {
+  DRAFT
+  IN_REVIEW
+  COMPLETED
+  ACKNOWLEDGED
+}
+
+// Training program model
+model TrainingProgram {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  trainer     String? // Name or organization
+  startDate   DateTime
+  endDate     DateTime
+  location    String?
+  capacity    Int?
+  cost        Decimal?
+  status      TrainingStatus @default(PLANNED)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  employeeTrainings EmployeeTraining[]
+}
+
+// Training status enum
+enum TrainingStatus {
+  PLANNED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+// Employee training model
+model EmployeeTraining {
+  id                String              @id @default(cuid())
+  employeeId        String
+  employee          Employee            @relation(fields: [employeeId], references: [id])
+  trainingProgramId String
+  trainingProgram   TrainingProgram     @relation(fields: [trainingProgramId], references: [id])
+  status            ParticipationStatus @default(ENROLLED)
+  completionDate    DateTime?
+  feedback          String?
+  rating            Int? // 1-5 scale
+  certificatePath   String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+// Participation status enum
+enum ParticipationStatus {
+  ENROLLED
+  ATTENDING
+  COMPLETED
+  DROPPED
+  NO_SHOW
+}
+
+// ==================== Government Subsidy Scheme Models ====================
+
+// Subsidy scheme model
+model SubsidyScheme {
+  id                    String       @id @default(cuid())
+  name                  String
+  code                  String       @unique
+  description           String?      @db.Text
+  sponsoredBy           String // Government department or agency
+  startDate             DateTime
+  endDate               DateTime?
+  status                SchemeStatus @default(ACTIVE)
+  eligibilityCriteria   String?      @db.Text
+  coverageDetails       String?      @db.Text
+  documentationRequired String?      @db.Text
+  contactPerson         String?
+  contactEmail          String?
+  contactPhone          String?
+  website               String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  beneficiaries SchemeBeneficiary[]
+  services      SchemeService[]
+  claims        SubsidyClaim[]
+}
+
+// Scheme status enum
+enum SchemeStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+// Scheme beneficiary model
+model SchemeBeneficiary {
+  id                 String                        @id @default(cuid())
+  schemeId           String
+  scheme             SubsidyScheme                 @relation(fields: [schemeId], references: [id])
+  patientId          String // Reference to a patient
+  beneficiaryId      String                        @unique // Government-assigned beneficiary ID
+  enrollmentDate     DateTime                      @default(now())
+  verificationStatus BeneficiaryVerificationStatus @default(PENDING)
+  verifiedBy         String? // User ID
+  verifiedAt         DateTime?
+  expiryDate         DateTime?
+  status             BeneficiaryStatus             @default(ACTIVE)
+  notes              String?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+
+  // Relations
+  documents BeneficiaryDocument[]
+  claims    SubsidyClaim[]
+}
+
+// Verification status enum for beneficiaries
+enum BeneficiaryVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  NEEDS_REVIEW
+}
+
+// Beneficiary status enum
+enum BeneficiaryStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  EXPIRED
+}
+
+// Beneficiary document model
+model BeneficiaryDocument {
+  id            String            @id @default(cuid())
+  beneficiaryId String
+  beneficiary   SchemeBeneficiary @relation(fields: [beneficiaryId], references: [id])
+  documentType  String // id proof, income certificate, etc.
+  title         String
+  description   String?
+  filePath      String
+  fileType      String // pdf, image, etc.
+  isVerified    Boolean           @default(false)
+  verifiedBy    String? // User ID
+  verifiedAt    DateTime?
+  expiryDate    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+// Scheme service model
+model SchemeService {
+  id                 String        @id @default(cuid())
+  schemeId           String
+  scheme             SubsidyScheme @relation(fields: [schemeId], references: [id])
+  serviceType        String // consultation, surgery, medication, etc.
+  serviceName        String
+  description        String?
+  coveragePercentage Float
+  maxCoverageAmount  Decimal?
+  annualLimit        Decimal?
+  lifetimeLimit      Decimal?
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  claims SubsidyClaim[]
+}
+
+// Subsidy claim model
+model SubsidyClaim {
+  id               String             @id @default(cuid())
+  schemeId         String
+  scheme           SubsidyScheme      @relation(fields: [schemeId], references: [id])
+  beneficiaryId    String
+  beneficiary      SchemeBeneficiary  @relation(fields: [beneficiaryId], references: [id])
+  serviceId        String
+  service          SchemeService      @relation(fields: [serviceId], references: [id])
+  invoiceId        String? // Reference to an invoice
+  claimNumber      String             @unique
+  serviceDate      DateTime
+  submissionDate   DateTime           @default(now())
+  diagnosis        String?
+  procedureCode    String?
+  claimAmount      Decimal
+  approvedAmount   Decimal?
+  status           SubsidyClaimStatus @default(SUBMITTED)
+  approvedBy       String? // User ID
+  approvedAt       DateTime?
+  rejectionReason  String?
+  paymentDate      DateTime?
+  paymentReference String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  // Relations
+  documents SubsidyClaimDocument[]
+}
+
+// Subsidy claim status enum
+enum SubsidyClaimStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+// Subsidy claim document model
+model SubsidyClaimDocument {
+  id           String       @id @default(cuid())
+  claimId      String
+  claim        SubsidyClaim @relation(fields: [claimId], references: [id])
+  documentType String // prescription, bill, report, etc.
+  title        String
+  description  String?
+  filePath     String
+  fileType     String // pdf, image, etc.
+  uploadedBy   String // User ID
+  uploadedAt   DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  TPAClaim     TPAClaim?    @relation(fields: [tPAClaimId], references: [id])
+  tPAClaimId   String?
+}
+
+// Subsidy budget model
+model SubsidyBudget {
+  id              String       @id @default(cuid())
+  fiscalYear      String // e.g., "2023-2024"
+  totalBudget     Decimal
+  allocatedAmount Decimal
+  utilizedAmount  Decimal      @default(0)
+  remainingAmount Decimal
+  startDate       DateTime
+  endDate         DateTime
+  status          BudgetStatus @default(ACTIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  allocations BudgetAllocation[]
+}
+
+// Budget status enum
+enum BudgetStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  EXTENDED
+}
+
+// Budget allocation model
+model BudgetAllocation {
+  id              String        @id @default(cuid())
+  budgetId        String
+  budget          SubsidyBudget @relation(fields: [budgetId], references: [id])
+  schemeId        String // Reference to a subsidy scheme
+  allocatedAmount Decimal
+  utilizedAmount  Decimal       @default(0)
+  remainingAmount Decimal
+  allocationDate  DateTime      @default(now())
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// ==================== Housekeeping Management Models ====================
+
+// Room model
+model Room {
+  id         String     @id @default(cuid())
+  roomNumber String     @unique
+  floor      Int
+  wing       String?
+  roomType   RoomType
+  capacity   Int        @default(1)
+  status     RoomStatus @default(AVAILABLE)
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  // Relations
+  cleaningTasks CleaningTask[]
+  inspections   RoomInspection[]
+}
+
+// Room type enum
+enum RoomType {
+  GENERAL_WARD
+  SEMI_PRIVATE
+  PRIVATE
+  DELUXE
+  SUITE
+  ICU
+  OPERATION_THEATER
+  EMERGENCY
+  LABOR_ROOM
+  CONSULTATION
+  LABORATORY
+  RADIOLOGY
+  PHARMACY
+  CAFETERIA
+  WAITING_AREA
+  OFFICE
+}
+
+// Room status enum
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  UNDER_CLEANING
+  UNDER_MAINTENANCE
+  RESERVED
+  OUT_OF_SERVICE
+}
+
+// Cleaning task model
+model CleaningTask {
+  id          String       @id @default(cuid())
+  roomId      String
+  room        Room         @relation(fields: [roomId], references: [id])
+  taskType    CleaningType
+  priority    TaskPriority @default(NORMAL)
+  scheduledAt DateTime
+  completedAt DateTime?
+  assignedTo  String? // User ID
+  status      TaskStatus   @default(PENDING)
+  notes       String?
+  createdBy   String // User ID
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  checklist CleaningChecklist?
+}
+
+// Cleaning type enum
+enum CleaningType {
+  ROUTINE
+  DEEP_CLEANING
+  DISCHARGE_CLEANING
+  ISOLATION_CLEANING
+  SPILL_CLEANUP
+  SPECIAL_REQUEST
+}
+
+// Task priority enum
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Cleaning checklist model
+model CleaningChecklist {
+  id              String       @id @default(cuid())
+  taskId          String       @unique
+  task            CleaningTask @relation(fields: [taskId], references: [id])
+  items           Json // Array of checklist items with completion status
+  completedBy     String? // User ID
+  completedAt     DateTime?
+  supervisorCheck Boolean      @default(false)
+  supervisorId    String? // User ID
+  supervisorNotes String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// Room inspection model
+model RoomInspection {
+  id              String           @id @default(cuid())
+  roomId          String
+  room            Room             @relation(fields: [roomId], references: [id])
+  inspectionType  InspectionType
+  scheduledAt     DateTime
+  completedAt     DateTime?
+  inspectedBy     String? // User ID
+  status          InspectionStatus @default(SCHEDULED)
+  rating          Int? // 1-5 scale
+  findings        String?
+  recommendations String?
+  followUpNeeded  Boolean          @default(false)
+  followUpDate    DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+// Inspection type enum
+enum InspectionType {
+  ROUTINE
+  QUALITY_CONTROL
+  SAFETY
+  INFECTION_CONTROL
+  POST_MAINTENANCE
+  COMPLAINT_BASED
+}
+
+// Inspection status enum
+enum InspectionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+// Inventory item model
+model HousekeepingInventory {
+  id           String   @id @default(cuid())
+  name         String
+  category     String
+  unit         String // e.g., bottle, box, kg
+  currentStock Int
+  minimumStock Int
+  reorderLevel Int
+  location     String? // Storage location
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  transactions InventoryTransaction[]
+}
+
+// Inventory transaction model
+model InventoryTransaction {
+  id              String                   @id @default(cuid())
+  inventoryId     String
+  inventory       HousekeepingInventory    @relation(fields: [inventoryId], references: [id])
+  transactionType InventoryTransactionType
+  quantity        Int
+  previousStock   Int
+  currentStock    Int
+  unitPrice       Decimal?
+  totalPrice      Decimal?
+  reference       String? // PO number, requisition number, etc.
+  transactedBy    String // User ID
+  transactedAt    DateTime                 @default(now())
+  notes           String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+}
+
+// Inventory transaction type enum
+enum InventoryTransactionType {
+  PURCHASE
+  CONSUMPTION
+  ADJUSTMENT_ADD
+  ADJUSTMENT_SUBTRACT
+  RETURN
+  TRANSFER
+  DAMAGED
+  EXPIRED
+}
+
+// Linen inventory model
+model LinenInventory {
+  id                String    @id @default(cuid())
+  itemType          String // bed sheet, pillow case, towel, etc.
+  totalQuantity     Int
+  inUseQuantity     Int       @default(0)
+  inLaundryQuantity Int       @default(0)
+  availableQuantity Int
+  lastStockTake     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  transactions LinenTransaction[]
+}
+
+// Linen transaction model
+model LinenTransaction {
+  id              String               @id @default(cuid())
+  linenId         String
+  linen           LinenInventory       @relation(fields: [linenId], references: [id])
+  transactionType LinenTransactionType
+  quantity        Int
+  roomId          String? // Reference to a room if applicable
+  handledBy       String // User ID
+  transactedAt    DateTime             @default(now())
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+// Linen transaction type enum
+enum LinenTransactionType {
+  PURCHASE
+  ISSUE_TO_ROOM
+  COLLECT_FROM_ROOM
+  SEND_TO_LAUNDRY
+  RECEIVE_FROM_LAUNDRY
+  DISCARD
+  STOCK_ADJUSTMENT
+}
+
+// Waste management model
+model WasteManagement {
+  id             String    @id @default(cuid())
+  wasteType      WasteType
+  quantity       Float
+  unit           String // kg, liters, etc.
+  disposalMethod String
+  collectedFrom  String? // Department or area
+  collectedBy    String // User ID
+  collectedAt    DateTime  @default(now())
+  disposedBy     String? // User ID or vendor
+  disposedAt     DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Waste type enum
+enum WasteType {
+  GENERAL
+  INFECTIOUS
+  SHARPS
+  PHARMACEUTICAL
+  CHEMICAL
+  RADIOACTIVE
+  FOOD
+  RECYCLABLE
+}
+
+// Pest control model
+model PestControl {
+  id              String    @id @default(cuid())
+  serviceType     String // fumigation, rodent control, etc.
+  serviceProvider String
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  areas           String[] // List of areas covered
+  chemicals       String?
+  effectiveness   Int? // 1-5 scale
+  nextServiceDate DateTime?
+  cost            Decimal?
+  invoiceNumber   String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Complaint model
+model HousekeepingComplaint {
+  id             String            @id @default(cuid())
+  complaintType  String // cleanliness, maintenance, etc.
+  description    String
+  roomId         String? // Reference to a room if applicable
+  location       String? // Alternative location description
+  reportedBy     String // User ID
+  reportedAt     DateTime          @default(now())
+  priority       ComplaintPriority @default(MEDIUM)
+  status         ComplaintStatus   @default(OPEN)
+  assignedTo     String? // User ID
+  assignedAt     DateTime?
+  resolvedBy     String? // User ID
+  resolvedAt     DateTime?
+  resolution     String?
+  feedback       String?
+  feedbackRating Int? // 1-5 scale
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+// Complaint priority enum
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Complaint status enum
+enum ComplaintStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REOPENED
 }

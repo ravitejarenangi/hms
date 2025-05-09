@@ -1,0 +1,124 @@
+// Prescription model
+model Prescription {
+  id                 String               @id @default(cuid())
+  prescriptionNumber String               @unique
+  patientId          String
+  doctorId           String
+  prescribedDate     DateTime
+  startDate          DateTime
+  endDate            DateTime?
+  status             PrescriptionStatus   @default(ACTIVE)
+  instructions       String?
+  diagnosis          String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  // Relations
+  patient       Patient                @relation(fields: [patientId], references: [id])
+  doctor        Doctor                 @relation(fields: [doctorId], references: [id])
+  medications   PrescriptionMedication[]
+  dispensations MedicationDispensation[]
+  schedules     MedicationSchedule[]
+}
+
+// Prescription status enum
+enum PrescriptionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+// Prescription medication model
+model PrescriptionMedication {
+  id            String      @id @default(cuid())
+  prescriptionId String
+  prescription  Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicationId  String
+  medication    Medicine    @relation(fields: [medicationId], references: [id])
+  dosage        String
+  frequency     String
+  duration      String?
+  route         String
+  instructions  String?
+  quantity      Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// Medication dispensation model
+model MedicationDispensation {
+  id             String      @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id])
+  dispensedBy    String // User ID
+  dispensedAt    DateTime    @default(now())
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+// Medication schedule model
+model MedicationSchedule {
+  id             String      @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  startDate      DateTime
+  endDate        DateTime?
+  timeOfDay      String[] // Array of times (e.g., "08:00", "14:00", "20:00")
+  daysOfWeek     Int[] // 0-6 for Sunday-Saturday
+  instructions   String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  reminders MedicationReminder[]
+}
+
+// Medication reminder model
+model MedicationReminder {
+  id                String                @id @default(cuid())
+  scheduleId        String
+  schedule          MedicationSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduledTime     DateTime
+  sentTime          DateTime?
+  status            MedicationReminderStatus @default(PENDING)
+  channel           ReminderChannel
+  content           String?
+  confirmationTime  DateTime?
+  confirmationStatus MedicationConfirmationStatus @default(PENDING)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+}
+
+// Medication reminder status enum
+enum MedicationReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// Medication confirmation status enum
+enum MedicationConfirmationStatus {
+  PENDING
+  CONFIRMED
+  MISSED
+  SKIPPED
+}
+
+// Add relations to existing models
+model Patient {
+  // Add this relation
+  prescriptions Prescription[]
+}
+
+model Doctor {
+  // Add this relation
+  prescriptions Prescription[]
+}
+
+model Medicine {
+  // Add this relation
+  prescriptionMedications PrescriptionMedication[]
+}

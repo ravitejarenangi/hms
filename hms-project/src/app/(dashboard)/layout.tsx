@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DashboardLayout as Layout } from "@/components/layout";
 
 export default function DashboardLayout({
   children,
@@ -29,9 +30,5 @@ export default function DashboardLayout({
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {children}
-    </div>
-  );
+  return <Layout>{children}</Layout>;
 }
