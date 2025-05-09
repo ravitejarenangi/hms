@@ -45,7 +45,15 @@ import {
   Warning as WarningIcon,
   ContactPhone as ContactPhoneIcon,
   Receipt as ReceiptIcon,
+  LocalHospital as LocalHospitalIcon,
+  Medication as MedicationIcon,
+  AccountBalance as AccountBalanceIcon,
 } from "@mui/icons-material";
+
+// Import our new components
+import SubsidySchemeList from "@/components/patients/subsidy/SubsidySchemeList";
+import MedicationManagement from "@/components/patients/medications/MedicationManagement";
+import PatientDoctorRelationship from "@/components/patients/doctors/PatientDoctorRelationship";
 
 interface Patient {
   id: string;
@@ -189,6 +197,10 @@ export default function PatientProfilePage({ params }: { params: { id: string } 
 
   const handleViewBilling = () => {
     router.push(`/patients/${patientId}/billing`);
+  };
+  
+  const handleViewAppointments = () => {
+    router.push(`/patients/${patientId}/appointments`);
   };
 
   const getStatusColor = (status: string) => {
@@ -417,11 +429,22 @@ export default function PatientProfilePage({ params }: { params: { id: string } 
 
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3 }}>
-            <Tabs value={activeTab} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              aria-label="patient profile tabs"
+            >
               <Tab label="Personal Details" />
               <Tab label="Contact Information" />
               <Tab label="Medical Summary" />
               <Tab label="Recent Vitals" />
+              <Tab label="Documents" />
+              <Tab label="Billing" />
+              <Tab label="Medications" />
+              <Tab label="Doctors" />
+              <Tab label="Subsidy Schemes" />
             </Tabs>
 
             <TabPanel value={activeTab} index={0}>
@@ -648,6 +671,77 @@ export default function PatientProfilePage({ params }: { params: { id: string } 
                   View All Vital Signs
                 </Button>
               </Box>
+            </TabPanel>
+
+            <TabPanel value={activeTab} index={4}>
+              {patient.documents && patient.documents.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Title</TableCell>
+                        <TableCell>Type</TableCell>
+                        <TableCell>Uploaded</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {patient.documents.map((document: any) => (
+                        <TableRow key={document.id}>
+                          <TableCell>{document.title}</TableCell>
+                          <TableCell>{document.documentType}</TableCell>
+                          <TableCell>{formatDate(document.uploadedAt)}</TableCell>
+                          <TableCell>
+                            <Button size="small" variant="outlined">
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Typography variant="body1" color="text.secondary">
+                  No documents available
+                </Typography>
+              )}
+              <Box sx={{ mt: 2, textAlign: 'right' }}>
+                <Button
+                  variant="outlined"
+                  onClick={handleViewDocuments}
+                >
+                  Manage Documents
+                </Button>
+              </Box>
+            </TabPanel>
+
+            <TabPanel value={activeTab} index={5}>
+              <Box sx={{ mb: 2 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleViewBilling}
+                  startIcon={<ReceiptIcon />}
+                >
+                  View Billing History
+                </Button>
+              </Box>
+            </TabPanel>
+            
+            {/* Medications Tab */}
+            <TabPanel value={activeTab} index={6}>
+              <MedicationManagement patientId={patientId} />
+            </TabPanel>
+            
+            {/* Doctors Tab */}
+            <TabPanel value={activeTab} index={7}>
+              <PatientDoctorRelationship patientId={patientId} />
+            </TabPanel>
+            
+            {/* Subsidy Schemes Tab */}
+            <TabPanel value={activeTab} index={8}>
+              <SubsidySchemeList patientId={patientId} />
             </TabPanel>
           </Paper>
         </Grid>

@@ -1,0 +1,198 @@
+// Supplier model for managing medicine suppliers
+model Supplier {
+  id              String   @id @default(cuid())
+  name            String
+  contactPerson   String?
+  email           String?
+  phone           String
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  postalCode      String?
+  taxId           String?
+  registrationNo  String?
+  status          SupplierStatus @default(ACTIVE)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  purchaseOrders  PurchaseOrder[]
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  BLACKLISTED
+}
+
+// Purchase Order model for ordering medicines
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  orderDate       DateTime @default(now())
+  expectedDelivery DateTime?
+  status          PurchaseOrderStatus @default(PENDING)
+  totalAmount     Decimal
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String?
+  paymentDate     DateTime?
+  notes           String?
+  createdBy       String // User ID
+  approvedBy      String? // User ID
+  approvedAt      DateTime?
+  receivedBy      String? // User ID
+  receivedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  items           PurchaseOrderItem[]
+}
+
+enum PurchaseOrderStatus {
+  PENDING
+  APPROVED
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+// Purchase Order Item model
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  medicineId      String
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+  quantity        Int
+  unitPrice       Decimal
+  totalPrice      Decimal
+  receivedQuantity Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Pharmacy Inventory model for real-time inventory tracking
+model PharmacyInventory {
+  id              String   @id @default(cuid())
+  medicineId      String
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+  batchId         String?
+  batch           MedicineBatch? @relation(fields: [batchId], references: [id])
+  currentStock    Int
+  minStockLevel   Int
+  maxStockLevel   Int
+  reorderLevel    Int
+  location        String?
+  lastStockUpdate DateTime @default(now())
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  transactions    InventoryTransaction[]
+}
+
+// Inventory Transaction model
+model InventoryTransaction {
+  id              String   @id @default(cuid())
+  inventoryId     String
+  inventory       PharmacyInventory @relation(fields: [inventoryId], references: [id])
+  transactionType InventoryTransactionType
+  quantity        Int
+  batchId         String?
+  batch           MedicineBatch? @relation(fields: [batchId], references: [id])
+  referenceId     String? // Could be a sale ID, purchase order ID, etc.
+  referenceType   String? // Type of reference (sale, purchase, adjustment, etc.)
+  notes           String?
+  performedBy     String // User ID
+  performedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum InventoryTransactionType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+  TRANSFER
+  EXPIRED
+  DAMAGED
+}
+
+// Pharmacy Sale model for tracking sales
+model PharmacySale {
+  id              String   @id @default(cuid())
+  saleNumber      String   @unique
+  patientId       String?
+  patient         Patient? @relation(fields: [patientId], references: [id])
+  prescriptionId  String?
+  prescription    Prescription? @relation(fields: [prescriptionId], references: [id])
+  saleDate        DateTime @default(now())
+  totalAmount     Decimal
+  discountAmount  Decimal  @default(0)
+  taxAmount       Decimal  @default(0)
+  netAmount       Decimal
+  paymentMethod   String
+  paymentStatus   PaymentStatus @default(PENDING)
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  notes           String?
+  soldBy          String // User ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  items           PharmacySaleItem[]
+}
+
+// Pharmacy Sale Item model
+model PharmacySaleItem {
+  id              String   @id @default(cuid())
+  saleId          String
+  sale            PharmacySale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicineId      String
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+  batchId         String?
+  batch           MedicineBatch? @relation(fields: [batchId], references: [id])
+  quantity        Int
+  unitPrice       Decimal
+  totalPrice      Decimal
+  discount        Decimal  @default(0)
+  tax             Decimal  @default(0)
+  netPrice        Decimal
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Pharmacy Analytics model for reporting metrics
+model PharmacyAnalytics {
+  id              String   @id @default(cuid())
+  period          String // daily, weekly, monthly, quarterly, yearly
+  startDate       DateTime
+  endDate         DateTime
+  totalSales      Decimal
+  totalPurchases  Decimal
+  totalProfit     Decimal
+  topSellingMedicines Json? // Array of top selling medicines with quantities
+  lowStockItems   Json? // Array of low stock items
+  expiringItems   Json? // Array of items nearing expiry
+  salesByCategory Json? // Sales breakdown by medicine category
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

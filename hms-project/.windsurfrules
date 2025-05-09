@@ -1,0 +1,32 @@
+# .windsurfrules for HMS Project
+# This file defines deployment and build rules for Windsurf deployments.
+
+[project]
+name = "hms-project"
+framework = "nextjs"
+
+[build]
+# Directory to output built static files (if applicable)
+output = ".next"
+# Command to build the project
+build_command = "npm run build"
+# Command to install dependencies
+install_command = "npm install"
+
+[deploy]
+# Directory or file to serve as the root for deployment
+publish = "public"
+# Environment variables file
+env_file = ".env"
+
+[ignore]
+# Files and directories to ignore in deployment
+patterns = [
+    "node_modules/",
+    ".git/",
+    ".husky/",
+    "prisma/migrations/"
+]
+
+# Add additional custom rules below as needed
+all the instructions are in tasks.md file.

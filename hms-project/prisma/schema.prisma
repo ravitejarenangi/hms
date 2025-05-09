@@ -99,13 +99,156 @@ model Doctor {
   maxAppointmentsPerDay Int      @default(20)
   isAvailableForOnline  Boolean  @default(false)
   about                 String?  @db.Text
+  rating                Float?   // Average rating from patients (1-5)
+  totalPatients         Int      @default(0) // Total number of patients assigned
+  totalAppointments     Int      @default(0) // Total appointments conducted
+  appointmentCompletionRate Float? // Percentage of completed appointments
+  averageAppointmentDuration Int? // Average duration of appointments in minutes
+  preferredWorkingHours Json?   // Detailed working hours preferences as JSON
+  vacationDays          Int      @default(0) // Vacation days taken in current year
+  vacationAllowance     Int      @default(20) // Annual vacation allowance
+  isAcceptingNewPatients Boolean @default(true) // Whether doctor is accepting new patients
+  maxPatientsPerDay     Int      @default(0) // Maximum patients per day (0 = no limit)
+  billingRate           Decimal  @default(0) // Hourly billing rate for co-consultations
+  referralCount         Int      @default(0) // Number of referrals made
+  specialtyFocus        String[] // Areas of specialty focus within main specialization
+  certifications        String[] // Professional certifications
+  languages             String[] // Languages spoken
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   // Relations
-  departments  DoctorDepartment[]
-  specialities DoctorSpeciality[]
-  prescriptions Prescription[]
+  departments           DoctorDepartment[]
+  specialities          DoctorSpeciality[]
+  prescriptions         Prescription[]
+  availability          DoctorAvailability[]
+  performanceMetrics    DoctorPerformanceMetric[]
+  patientAssignments    PatientAssignment[]
+  referrals             DoctorReferral[]
+  coConsultations       DoctorCoConsultation[]
+}
+
+// Doctor availability model for detailed scheduling
+model DoctorAvailability {
+  id          String   @id @default(cuid())
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int      // 0-6 for Sunday-Saturday
+  startTime   String   // HH:MM format
+  endTime     String   // HH:MM format
+  isRecurring Boolean  @default(true)
+  date        DateTime? // For non-recurring specific dates
+  isAvailable Boolean  @default(true)
+  slotDuration Int     @default(30) // Duration of each slot in minutes
+  maxPatients Int      @default(0) // Maximum patients per slot (0 = unlimited)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([doctorId, dayOfWeek, startTime, date])
+}
+
+// Doctor performance metrics model
+model DoctorPerformanceMetric {
+  id                     String   @id @default(cuid())
+  doctorId               String
+  doctor                 Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  period                 String   // daily, weekly, monthly, quarterly, yearly
+  startDate              DateTime
+  endDate                DateTime
+  totalAppointments      Int      @default(0)
+  completedAppointments  Int      @default(0)
+  cancelledAppointments  Int      @default(0)
+  noShowAppointments     Int      @default(0)
+  averageRating          Float?   // Average patient rating for this period
+  averageDuration        Int?     // Average appointment duration in minutes
+  patientSatisfaction    Float?   // Calculated satisfaction score
+  revenueGenerated       Decimal  @default(0)
+  referralsReceived      Int      @default(0)
+  referralsMade          Int      @default(0)
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([doctorId, period, startDate])
+}
+
+// Patient assignment model for tracking doctor-patient relationships
+model PatientAssignment {
+  id                String   @id @default(cuid())
+  patientId         String
+  doctorId          String
+  doctor            Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  assignmentDate    DateTime @default(now())
+  isPrimaryDoctor   Boolean  @default(false)
+  status            PatientAssignmentStatus @default(ACTIVE)
+  notes             String?
+  lastAppointment   DateTime?
+  nextAppointment   DateTime?
+  createdBy         String   // User who created the assignment
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([patientId, doctorId])
+}
+
+// Patient assignment status enum
+enum PatientAssignmentStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  COMPLETED
+}
+
+// Doctor referral model for tracking referrals between doctors
+model DoctorReferral {
+  id                String   @id @default(cuid())
+  patientId         String
+  referringDoctorId String
+  referringDoctor   Doctor   @relation(fields: [referringDoctorId], references: [id], name: "ReferringDoctor")
+  receivingDoctorId String
+  receivingDoctor   Doctor   @relation(fields: [receivingDoctorId], references: [id], name: "ReceivingDoctor")
+  reason            String
+  notes             String?
+  priority          ReferralPriority @default(NORMAL)
+  status            ReferralStatus @default(PENDING)
+  appointmentId     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Referral priority enum
+enum ReferralPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Referral status enum
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+// Doctor co-consultation model for tracking multi-doctor consultations
+model DoctorCoConsultation {
+  id                String   @id @default(cuid())
+  appointmentId     String
+  doctorId          String
+  doctor            Doctor   @relation(fields: [doctorId], references: [id])
+  role              String   // PRIMARY, CONSULTANT, SPECIALIST
+  notes             String?
+  billingAmount     Decimal  @default(0)
+  duration          Int?     // Duration in minutes
+  createdBy         String   // User who created the record
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([appointmentId, doctorId])
 }
 
 // Nurse model for nurse-specific information
