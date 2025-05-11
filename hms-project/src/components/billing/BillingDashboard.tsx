@@ -646,4 +646,56 @@ const BillingDashboard: React.FC = () => {
   );
 };
 
-export default BillingDashboard;
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import OPDBilling from './OPDBilling';
+import IPDBilling from './IPDBilling';
+import OperationTheaterBilling from './OperationTheaterBilling';
+import EmergencyBilling from './EmergencyBilling';
+import PathologyBilling from './PathologyBilling';
+import RadiologyBilling from './RadiologyBilling';
+import PharmacyBilling from './PharmacyBilling';
+import PhysiotherapyBilling from './PhysiotherapyBilling';
+import DentalBilling from './DentalBilling';
+
+const departmentTabs = [
+  { label: 'OPD', component: <OPDBilling /> },
+  { label: 'IPD', component: <IPDBilling /> },
+  { label: 'Operation Theater', component: <OperationTheaterBilling /> },
+  { label: 'Emergency', component: <EmergencyBilling /> },
+  { label: 'Pathology', component: <PathologyBilling /> },
+  { label: 'Radiology', component: <RadiologyBilling /> },
+  { label: 'Pharmacy', component: <PharmacyBilling /> },
+  { label: 'Physiotherapy', component: <PhysiotherapyBilling /> },
+  { label: 'Dental', component: <DentalBilling /> },
+];
+
+function DepartmentBillingTabs() {
+  const [tab, setTab] = React.useState(0);
+  return (
+    <Box sx={{ width: '100%', mt: 3 }}>
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        aria-label="Department Billing Tabs"
+      >
+        {departmentTabs.map((d, idx) => (
+          <Tab key={d.label} label={d.label} />
+        ))}
+      </Tabs>
+      <Box sx={{ mt: 2 }}>{departmentTabs[tab].component}</Box>
+    </Box>
+  );
+}
+
+const BillingDashboardWithDepartments = () => (
+  <>
+    <BillingDashboard />
+    <DepartmentBillingTabs />
+  </>
+);
+
+export default BillingDashboardWithDepartments;
+

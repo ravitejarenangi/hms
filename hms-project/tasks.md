@@ -1680,7 +1680,7 @@ Develop the billing and accounting system with Indian GST standards support.
 
 7. Create expense tracking system
 
-   **Backend API Route**: `/pages/api/billing/expenses/index.js`
+   **Backend API Route**: `/pages/api/billing/expenses/index.js
 
 8. Implement government subsidy scheme management
    * 8.1. Create subsidy scheme configuration interface

@@ -74,9 +74,9 @@ export async function getUserFromRequest(request: NextRequest) {
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     include: {
-      roles: {
+      UserRole: {
         include: {
-          role: true,
+          Role: true,
         },
       },
     },
@@ -110,9 +110,9 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           include: {
-            roles: {
+            UserRole: {
               include: {
-                role: true
+                Role: true
               }
             }
           }
@@ -129,7 +129,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Get user roles
-        const roles = user.roles.map((ur: any) => ur.role.name);
+        const roles = user.UserRole.map((ur: any) => ur.Role.name);
 
         return {
           id: user.id,
@@ -144,7 +144,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
         token.id = user.id;
-        token.roles = user.roles;
+        token.roles = user.roles;  // user already has extracted roles from authorize
       }
       return token;
     },

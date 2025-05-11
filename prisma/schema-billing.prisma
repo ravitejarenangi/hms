@@ -1,0 +1,270 @@
+// Billing and Accounting Schema
+
+// Enums
+enum InvoiceStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  NETBANKING
+  CHEQUE
+  INSURANCE
+  WALLET
+  OTHER
+}
+
+enum GSTRateType {
+  EXEMPT
+  ZERO
+  FIVE
+  TWELVE
+  EIGHTEEN
+  TWENTYEIGHT
+}
+
+enum ServiceType {
+  CONSULTATION
+  PROCEDURE
+  MEDICATION
+  LABORATORY
+  RADIOLOGY
+  PACKAGE
+  OTHER
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum JournalEntryReferenceType {
+  INVOICE
+  PAYMENT
+  CREDIT_NOTE
+  EXPENSE
+  MANUAL
+  OTHER
+}
+
+// Models
+model PatientBilling {
+  id                      String      @id @default(uuid())
+  patientId               String
+  serviceType             ServiceType
+  serviceId               String?
+  description             String
+  amount                  Float
+  discount                Float       @default(0)
+  taxableAmount           Float
+  gstRateType             GSTRateType @default(EXEMPT)
+  cgstRate                Float       @default(0)
+  cgstAmount              Float       @default(0)
+  sgstRate                Float       @default(0)
+  sgstAmount              Float       @default(0)
+  igstRate                Float       @default(0)
+  igstAmount              Float       @default(0)
+  totalAmount             Float
+  departmentId            String?
+  doctorId                String?
+  notes                   String?
+  isInsuranceCovered      Boolean     @default(false)
+  insuranceProvider       String?
+  insurancePolicyNumber   String?
+  insuranceCoveragePercent Float?
+  tpaId                   String?
+  createdBy               String
+  createdAt               DateTime    @default(now())
+  updatedBy               String?
+  updatedAt               DateTime?   @updatedAt
+
+  // Relations
+  patient                 Patient     @relation(fields: [patientId], references: [id])
+  department              Department? @relation(fields: [departmentId], references: [id])
+  doctor                  Doctor?     @relation(fields: [doctorId], references: [id])
+  tpa                     TPAOrganization? @relation(fields: [tpaId], references: [id])
+}
+
+model TaxInvoice {
+  id                String        @id @default(uuid())
+  invoiceNumber     String        @unique
+  patientId         String
+  invoiceDate       DateTime      @default(now())
+  dueDate           DateTime
+  status            InvoiceStatus @default(PENDING)
+  subtotal          Float
+  discountAmount    Float         @default(0)
+  taxableAmount     Float
+  cgstAmount        Float         @default(0)
+  sgstAmount        Float         @default(0)
+  igstAmount        Float         @default(0)
+  totalAmount       Float
+  paidAmount        Float         @default(0)
+  balanceAmount     Float
+  notes             String?
+  termsAndConditions String?
+  isGSTRegistered   Boolean       @default(true)
+  customerGSTIN     String?
+  placeOfSupply     String
+  hospitalGSTIN     String
+  createdBy         String
+  createdAt         DateTime      @default(now())
+  updatedBy         String?
+  updatedAt         DateTime?     @updatedAt
+
+  // Relations
+  patient           Patient       @relation(fields: [patientId], references: [id])
+  invoiceItems      InvoiceItem[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
+  journalEntries    JournalEntry[]
+}
+
+model InvoiceItem {
+  id              String      @id @default(uuid())
+  invoiceId       String
+  itemType        String
+  itemId          String?
+  description     String
+  hsnSacCode      String
+  quantity        Int
+  unitPrice       Float
+  discountPercent Float       @default(0)
+  discountAmount  Float       @default(0)
+  taxableAmount   Float
+  gstRateType     GSTRateType
+  cgstRate        Float       @default(0)
+  cgstAmount      Float       @default(0)
+  sgstRate        Float       @default(0)
+  sgstAmount      Float       @default(0)
+  igstRate        Float       @default(0)
+  igstAmount      Float       @default(0)
+  totalAmount     Float
+  departmentId    String?
+  doctorId        String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime?   @updatedAt
+
+  // Relations
+  invoice         TaxInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  department      Department? @relation(fields: [departmentId], references: [id])
+  doctor          Doctor?     @relation(fields: [doctorId], references: [id])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  invoiceId       String
+  receiptNumber   String        @unique
+  paymentDate     DateTime      @default(now())
+  paymentMethod   PaymentMethod
+  amount          Float
+  transactionId   String?
+  chequeNumber    String?
+  bankName        String?
+  notes           String?
+  receivedBy      String
+  journalEntryId  String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime?     @updatedAt
+
+  // Relations
+  invoice         TaxInvoice    @relation(fields: [invoiceId], references: [id])
+  journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id])
+}
+
+model CreditNote {
+  id              String      @id @default(uuid())
+  creditNoteNumber String     @unique
+  invoiceId       String
+  issueDate       DateTime    @default(now())
+  amount          Float
+  reason          String
+  notes           String?
+  createdBy       String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime?   @updatedAt
+
+  // Relations
+  invoice         TaxInvoice  @relation(fields: [invoiceId], references: [id])
+  journalEntries  JournalEntry[]
+}
+
+model ChartOfAccount {
+  id              String      @id @default(uuid())
+  accountCode     String      @unique
+  accountName     String
+  accountType     String      // Asset, Liability, Equity, Revenue, Expense
+  parentAccountId String?
+  description     String?
+  isActive        Boolean     @default(true)
+  createdBy       String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime?   @updatedAt
+
+  // Relations
+  parentAccount   ChartOfAccount?  @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts   ChartOfAccount[] @relation("AccountHierarchy")
+  journalItems    JournalItem[]
+}
+
+model FinancialYear {
+  id              String      @id @default(uuid())
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  isCurrent       Boolean     @default(false)
+  isLocked        Boolean     @default(false)
+  createdBy       String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime?   @updatedAt
+
+  // Relations
+  journalEntries  JournalEntry[]
+}
+
+model JournalEntry {
+  id              String                  @id @default(uuid())
+  entryNumber     String                  @unique
+  entryDate       DateTime                @default(now())
+  financialYearId String
+  reference       String?
+  referenceType   JournalEntryReferenceType?
+  description     String
+  totalDebit      Float
+  totalCredit     Float
+  status          JournalEntryStatus      @default(DRAFT)
+  createdBy       String
+  createdAt       DateTime                @default(now())
+  updatedBy       String?
+  updatedAt       DateTime?               @updatedAt
+
+  // Relations
+  financialYear   FinancialYear           @relation(fields: [financialYearId], references: [id])
+  journalItems    JournalItem[]
+  invoices        TaxInvoice[]
+  payments        Payment[]
+  creditNotes     CreditNote[]
+}
+
+model JournalItem {
+  id              String          @id @default(uuid())
+  journalEntryId  String
+  accountId       String
+  description     String?
+  debitAmount     Float           @default(0)
+  creditAmount    Float           @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime?       @updatedAt
+
+  // Relations
+  journalEntry    JournalEntry    @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         ChartOfAccount  @relation(fields: [accountId], references: [id])
+}

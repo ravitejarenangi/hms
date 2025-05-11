@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Toolbar, CssBaseline } from "@mui/material";
-import { useSession } from "next-auth/react";
+import { Box, Toolbar, CssBaseline, useMediaQuery, Theme, createTheme, ThemeProvider } from "@mui/material";
+import { useSession, signOut } from "next-auth/react";
 import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
@@ -29,6 +29,152 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const router = useRouter();
   const { data: session } = useSession();
   const drawerWidth = 240;
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
+  
+  // Create a more modern theme based on dark mode state
+  const theme = React.useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: darkMode ? 'dark' : 'light',
+          primary: {
+            main: '#3f51b5', // Indigo
+            light: '#757de8',
+            dark: '#002984',
+          },
+          secondary: {
+            main: '#00bcd4', // Cyan
+            light: '#62efff',
+            dark: '#008ba3',
+          },
+          background: {
+            default: darkMode ? '#121212' : '#f5f5f7',
+            paper: darkMode ? '#1e1e1e' : '#ffffff',
+          },
+          error: {
+            main: '#f44336',
+          },
+          warning: {
+            main: '#ff9800',
+          },
+          info: {
+            main: '#2196f3',
+          },
+          success: {
+            main: '#4caf50',
+          },
+        },
+        typography: {
+          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+          h1: {
+            fontWeight: 700,
+          },
+          h2: {
+            fontWeight: 600,
+          },
+          h3: {
+            fontWeight: 600,
+          },
+          h4: {
+            fontWeight: 600,
+          },
+          h5: {
+            fontWeight: 600,
+          },
+          h6: {
+            fontWeight: 600,
+          },
+          button: {
+            fontWeight: 600,
+            textTransform: 'none',
+          },
+        },
+        shape: {
+          borderRadius: 12,
+        },
+        components: {
+          MuiAppBar: {
+            styleOverrides: {
+              root: {
+                backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+                color: darkMode ? '#ffffff' : '#333333',
+                boxShadow: darkMode 
+                  ? '0 2px 10px rgba(0, 0, 0, 0.5)' 
+                  : '0 2px 10px rgba(0, 0, 0, 0.05)',
+              },
+            },
+          },
+          MuiDrawer: {
+            styleOverrides: {
+              paper: {
+                backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+                boxShadow: darkMode 
+                  ? '2px 0 10px rgba(0, 0, 0, 0.5)' 
+                  : '2px 0 10px rgba(0, 0, 0, 0.05)',
+              },
+            },
+          },
+          MuiButton: {
+            styleOverrides: {
+              root: {
+                borderRadius: 8,
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                },
+              },
+            },
+          },
+          MuiPaper: {
+            styleOverrides: {
+              rounded: {
+                borderRadius: 12,
+              },
+              elevation1: {
+                boxShadow: darkMode 
+                  ? '0 2px 10px rgba(0, 0, 0, 0.5)' 
+                  : '0 2px 10px rgba(0, 0, 0, 0.05)',
+              },
+            },
+          },
+          MuiCard: {
+            styleOverrides: {
+              root: {
+                borderRadius: 12,
+                boxShadow: darkMode 
+                  ? '0 4px 20px rgba(0, 0, 0, 0.5)' 
+                  : '0 4px 20px rgba(0, 0, 0, 0.05)',
+                overflow: 'hidden',
+              },
+            },
+          },
+        },
+      }),
+    [darkMode],
+  );
+
+  // Toggle drawer for mobile view
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  // Toggle dark mode
+  const handleToggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    // You can store this preference in localStorage
+    localStorage.setItem('darkMode', (!darkMode).toString());
+  };
+
+  // Load dark mode preference from localStorage on initial render
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode) {
+      setDarkMode(savedDarkMode === 'true');
+    }
+  }, []);
 
   // Get user data from session
   const user = {
@@ -143,6 +289,29 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       icon: <DoctorIcon />,
     },
     {
+      title: "Billing & Accounting",
+      path: "/billing",
+      icon: <AccountingIcon />,
+      children: [
+        {
+          title: "Dashboard",
+          path: "/billing",
+        },
+        {
+          title: "Invoices",
+          path: "/billing/invoices",
+        },
+        {
+          title: "Create Invoice",
+          path: "/billing/invoices/create",
+        },
+        {
+          title: "Financial Reports",
+          path: "/billing/reports",
+        },
+      ],
+    },
+    {
       title: "Radiology",
       path: "/radiology",
       icon: <RadiologyIcon />,
@@ -199,29 +368,43 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     // Use the signOut function from next-auth
-    router.push("/login");
+    signOut({ callbackUrl: '/login' });
   };
 
   return (
-    <Box sx={{ display: "flex" }}>
-      <CssBaseline />
-      <Header user={user} onLogout={handleLogout} />
-      <Sidebar items={sidebarItems} width={drawerWidth} />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          bgcolor: "background.default",
-          minHeight: "100vh",
-        }}
-      >
-        <Toolbar /> {/* This creates space below the app bar */}
-        {children}
+    <ThemeProvider theme={theme}>
+      <Box sx={{ display: "flex" }}>
+        <CssBaseline />
+        <Header 
+          user={user} 
+          onLogout={handleLogout} 
+          toggleDrawer={handleDrawerToggle}
+          darkMode={darkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+        />
+        <Sidebar 
+          items={sidebarItems} 
+          width={drawerWidth} 
+          mobileOpen={mobileOpen}
+          onMobileClose={handleDrawerToggle}
+          variant={isMobile ? 'temporary' : 'permanent'}
+        />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: 3,
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            ml: { sm: `${drawerWidth}px` },
+            bgcolor: "background.default",
+            minHeight: "100vh",
+          }}
+        >
+          <Toolbar /> {/* This creates space below the app bar */}
+          {children}
+        </Box>
       </Box>
-    </Box>
+    </ThemeProvider>
   );
 };
 

@@ -30,3 +30,5 @@ patterns = [
 
 # Add additional custom rules below as needed
 all the instructions are in tasks.md file.
+
+If you want to access any file in the codebase use full path of the file. 

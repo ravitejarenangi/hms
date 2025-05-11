@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -9,6 +11,7 @@ import {
   ListItemIcon,
   Divider,
   Badge,
+  Button,
   IconButton,
   Drawer,
   Alert,
@@ -53,15 +56,34 @@ const RadiologyRealTimeUpdates: React.FC = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [currentNotification, setCurrentNotification] = useState<NotificationMessage | null>(null);
 
+  // Track the reader for cleanup
+  const readerRef = React.useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  
   // Initialize SSE connection
   useEffect(() => {
+    // Create a new abort controller for this connection
+    abortControllerRef.current = new AbortController();
+    
+    // Start the SSE connection
     connectToSSE();
 
     // Cleanup on unmount
     return () => {
-      if (eventSource) {
-        eventSource.close();
+      // Cancel any in-flight fetch requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
+      
+      // Close the reader if it exists
+      if (readerRef.current) {
+        readerRef.current.cancel().catch(err => {
+          console.error('Error canceling reader:', err);
+        });
+      }
+      
+      // We no longer use eventSource, so clear the connected state
+      setConnected(false);
     };
   }, []);
 
@@ -71,39 +93,179 @@ const RadiologyRealTimeUpdates: React.FC = () => {
     setUnreadCount(unread);
   }, [notifications]);
 
-  const connectToSSE = () => {
+  // Track reconnection attempts
+  const reconnectAttemptsRef = React.useRef<number>(0);
+  const maxReconnectAttempts = 5;
+  const initialReconnectDelay = 1000; // 1 second
+
+  const connectToSSE = async () => {
     try {
-      // Create a new EventSource connection to the SSE endpoint
-      const sse = new EventSource('/api/radiology/sse');
+      // Reset error state when attempting to connect
+      setError(null);
+
+      // First check authentication status to avoid unnecessary connection attempts
+      const authCheckResponse = await fetch('/api/auth/session', {
+        credentials: 'include',
+      }).catch(err => {
+        console.error('Auth check failed:', err);
+        throw new Error(`Authentication check failed: ${err.message}`);
+      });
+
+      if (!authCheckResponse.ok) {
+        throw new Error(`Authentication check failed with status: ${authCheckResponse.status}`);
+      }
+
+      const authData = await authCheckResponse.json();
+      if (!authData || !authData.user) {
+        throw new Error('User not authenticated. Please log in first.');
+      }
       
-      // Set up event listeners
-      sse.onopen = () => {
-        setConnected(true);
-        setError(null);
-      };
-      
-      sse.onerror = (err) => {
-        console.error('SSE connection error:', err);
-        setConnected(false);
-        setError('Failed to connect to real-time updates. Will retry automatically...');
-        
-        // Close the connection and try to reconnect after a delay
-        sse.close();
-        setTimeout(connectToSSE, 5000);
-      };
-      
-      // Listen for radiology update events
-      sse.addEventListener('radiology-update', (event) => {
-        try {
-          const data = JSON.parse(event.data) as NotificationMessage;
-          handleNewNotification(data);
-        } catch (err) {
-          console.error('Error parsing SSE event data:', err);
-        }
+      // Use fetch with credentials to establish the SSE connection
+      const response = await fetch('/api/radiology/sse', {
+        method: 'GET',
+        credentials: 'include', // Include cookies
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+        signal: abortControllerRef.current?.signal,
+      }).catch(err => {
+        // Handle fetch errors explicitly
+        console.error('Fetch error:', err);
+        throw new Error(`SSE connection request failed: ${err.message}`);
       });
       
-      // Store the EventSource instance
-      setEventSource(sse);
+      // Reset reconnect attempts on successful connection
+      reconnectAttemptsRef.current = 0;
+      
+      if (!response.ok) {
+        throw new Error(`SSE connection failed with status: ${response.status}`);
+      }
+
+      setConnected(true);
+
+      // Handle the stream
+      if (!response.body) {
+        console.error('No response body available');
+        setConnected(false);
+        return;
+      }
+      
+      const reader = response.body.getReader();
+      readerRef.current = reader;
+      
+      let decoder = new TextDecoder();
+      let buffer = '';
+
+      // Process the data stream
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              console.log('SSE stream complete');
+              setConnected(false);
+              break;
+            }
+
+            // Decode the chunk and add to buffer
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE messages in the buffer
+            // SSE messages are separated by double newlines
+            const messages = buffer.split('\n\n');
+            buffer = messages.pop() || ''; // Keep the last incomplete chunk in the buffer
+
+            for (const message of messages) {
+              if (message.trim() === '') continue;
+              
+              // Extract event data from SSE format
+              // Each line in an SSE message is a field
+              const lines = message.split('\n');
+              const fields: Record<string, string> = {};
+              
+              for (const line of lines) {
+                if (line.trim() === '') continue;
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0) {
+                  const fieldName = line.slice(0, colonIndex);
+                  // The spec says to remove the first space after the colon if it exists
+                  const fieldValue = line.slice(colonIndex + 1).startsWith(' ') 
+                    ? line.slice(colonIndex + 2) 
+                    : line.slice(colonIndex + 1);
+                  fields[fieldName] = fieldValue;
+                }
+              }
+              
+              // Check if we have data in the event
+              if (fields.data) {
+                try {
+                  const data = JSON.parse(fields.data);
+                  console.log('Received SSE event:', data);
+                  handleNewNotification(data);
+                } catch (parseError) {
+                  console.error('Failed to parse SSE data:', parseError, fields.data);
+                }
+              }
+            }
+          }
+        } catch (error: any) {
+          if (error && error.name === 'AbortError') {
+            console.log('SSE connection was aborted');
+          } else {
+            // Safely handle errors, converting Event objects to strings if needed
+            let errorMessage = 'Unknown error';
+            if (error instanceof Event) {
+              errorMessage = `Event error: ${error.type}`;
+            } else if (error?.message) {
+              errorMessage = error.message;
+            } else if (typeof error === 'object') {
+              try {
+                errorMessage = JSON.stringify(error);
+              } catch (e) {
+                errorMessage = 'Unserializable error object';
+              }
+            }
+            
+            console.error('Error reading SSE stream:', errorMessage);
+            setError(`Failed to process SSE stream: ${errorMessage}`);
+            
+            // Implement reconnection with exponential backoff
+            const attemptReconnect = () => {
+              reconnectAttemptsRef.current += 1;
+              
+              if (reconnectAttemptsRef.current <= maxReconnectAttempts) {
+                // Calculate exponential backoff delay
+                const delay = initialReconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1);
+                console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current} of ${maxReconnectAttempts})`);
+                
+                setError(`Connection lost. Reconnecting in ${Math.round(delay/1000)} seconds... (attempt ${reconnectAttemptsRef.current} of ${maxReconnectAttempts})`);
+                
+                // Set a timeout to attempt reconnection
+                setTimeout(() => {
+                  // Create a new AbortController for the next connection attempt
+                  if (abortControllerRef.current) {
+                    abortControllerRef.current = new AbortController();
+                  }
+                  connectToSSE();
+                }, delay);
+              } else {
+                console.error('Maximum reconnection attempts reached');
+                setError('Maximum reconnection attempts reached. Please refresh the page to try again.');
+              }
+            };
+            
+            // Start reconnection process
+            attemptReconnect();
+          }
+          setConnected(false);
+        }
+      };
+      
+      // Start processing the stream
+      processStream();
+      
     } catch (err) {
       console.error('Error setting up SSE connection:', err);
       setConnected(false);

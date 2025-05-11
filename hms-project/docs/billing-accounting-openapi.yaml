@@ -1,0 +1,290 @@
+openapi: 3.0.3
+info:
+  title: HMS Billing & Accounting API
+  description: >-
+    This OpenAPI specification documents all billing and accounting related
+    endpoints, including GST-compliant invoicing, payments, insurance claims,
+    expense tracking, subsidy schemes, departmental billing, and analytics.
+  version: 1.0.0
+servers:
+  - url: https://hms.example.com/api
+    description: Production server
+  - url: http://localhost:3000/api
+    description: Local dev server
+
+tags:
+  - name: Billing
+  - name: Payments
+  - name: Insurance
+  - name: Expenses
+  - name: Subsidy
+  - name: Accounting Reports
+
+paths:
+  /billing/invoices:
+    get:
+      tags: [Billing]
+      summary: List invoices
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Paged list of invoices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResponse'
+    post:
+      tags: [Billing]
+      summary: Create invoice with GST breakdown
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceInput'
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+  /billing/invoices/{id}:
+    get:
+      tags: [Billing]
+      summary: Get invoice details
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+    put:
+      tags: [Billing]
+      summary: Update an invoice
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceInput'
+      responses:
+        '200': { description: Updated invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+    delete:
+      tags: [Billing]
+      summary: Delete an invoice
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204': { description: Invoice deleted }
+
+  /billing/payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      parameters:
+        - in: query
+          name: invoiceId
+          schema: { type: string }
+      responses:
+        '200': { description: List of payments, content: { application/json: { schema: { $ref: '#/components/schemas/PagedResponse' } } } }
+    post:
+      tags: [Payments]
+      summary: Process payment (Cash, Card, UPI, NetBanking, Wallet, Insurance)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInput'
+      responses:
+        '201': { description: Payment processed, content: { application/json: { schema: { $ref: '#/components/schemas/Payment' } } } }
+
+  /billing/expenses:
+    get:
+      tags: [Expenses]
+      summary: List expenses
+      responses:
+        '200': { description: Paged expenses, content: { application/json: { schema: { $ref: '#/components/schemas/PagedResponse' } } } }
+    post:
+      tags: [Expenses]
+      summary: Record expense with categorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseInput'
+      responses:
+        '201': { description: Expense created, content: { application/json: { schema: { $ref: '#/components/schemas/Expense' } } } }
+
+  /billing/insurance/claims:
+    get:
+      tags: [Insurance]
+      summary: List insurance claims
+      responses:
+        '200': { description: Paged claims, content: { application/json: { schema: { $ref: '#/components/schemas/PagedResponse' } } } }
+    post:
+      tags: [Insurance]
+      summary: Submit insurance claim to TPA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsuranceClaimInput'
+      responses:
+        '201': { description: Claim created, content: { application/json: { schema: { $ref: '#/components/schemas/InsuranceClaim' } } } }
+
+  /billing/subsidy:
+    get:
+      tags: [Subsidy]
+      summary: List subsidy schemes
+      responses:
+        '200': { description: Schemes list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SubsidyScheme' } } } } }
+
+  /accounting/reports:
+    get:
+      tags: [Accounting Reports]
+      summary: Financial reports (GST, P&L, Balance Sheet, Day Book, etc.)
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [daybook, cashbook, bankbook, trialbalance, pnl, balancesheet, gstr1, gstr2, gstr3b, tds]
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Report data, content: { application/json: { schema: { type: object } } } }
+
+components:
+  parameters:
+    IdParam:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+  schemas:
+    PagedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { type: object }
+        meta:
+          type: object
+          properties:
+            page: { type: integer }
+            limit: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+    InvoiceInput:
+      type: object
+      required: [patientId, items, placeOfSupply, hospitalGSTIN]
+      properties:
+        patientId: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/InvoiceItem' }
+        notes: { type: string }
+        placeOfSupply: { type: string }
+        hospitalGSTIN: { type: string }
+        isGSTRegistered: { type: boolean }
+        customerGSTIN: { type: string }
+    Invoice:
+      allOf:
+        - $ref: '#/components/schemas/InvoiceInput'
+        - type: object
+          properties:
+            id: { type: string }
+            invoiceNumber: { type: string }
+            totalAmount: { type: number, format: double }
+            paidAmount: { type: number, format: double }
+            balanceAmount: { type: number, format: double }
+            status: { type: string, enum: [DRAFT, ISSUED, PAID, PARTIALLY_PAID, CANCELLED] }
+            createdAt: { type: string, format: date-time }
+    InvoiceItem:
+      type: object
+      required: [description, quantity, unitPrice, gstRateType]
+      properties:
+        description: { type: string }
+        quantity: { type: number }
+        unitPrice: { type: number, format: double }
+        discountPercent: { type: number, format: double }
+        gstRateType: { type: string, enum: [EXEMPT, ZERO, FIVE, TWELVE, EIGHTEEN, TWENTYEIGHT] }
+        departmentId: { type: string }
+        doctorId: { type: string }
+    PaymentInput:
+      type: object
+      required: [invoiceId, paymentMethod, amount]
+      properties:
+        invoiceId: { type: string }
+        paymentMethod:
+          type: string
+          enum: [CASH, CREDIT_CARD, DEBIT_CARD, UPI, NETBANKING, CHEQUE, INSURANCE, WALLET, OTHER]
+        amount: { type: number, format: double }
+        transactionId: { type: string }
+    Payment:
+      allOf:
+        - $ref: '#/components/schemas/PaymentInput'
+        - type: object
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [SUCCESS, FAILED, PENDING] }
+            processedAt: { type: string, format: date-time }
+    ExpenseInput:
+      type: object
+      required: [amount, category, date]
+      properties:
+        amount: { type: number, format: double }
+        category: { type: string }
+        description: { type: string }
+        date: { type: string, format: date }
+    Expense:
+      allOf:
+        - $ref: '#/components/schemas/ExpenseInput'
+        - type: object
+          properties:
+            id: { type: string }
+            createdAt: { type: string, format: date-time }
+    InsuranceClaimInput:
+      type: object
+      required: [invoiceId, tpaProviderId, claimedAmount]
+      properties:
+        invoiceId: { type: string }
+        tpaProviderId: { type: string }
+        claimedAmount: { type: number, format: double }
+        documents: { type: array, items: { type: string, format: binary } }
+    InsuranceClaim:
+      allOf:
+        - $ref: '#/components/schemas/InsuranceClaimInput'
+        - type: object
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [PENDING, APPROVED, REJECTED, PARTIALLY_APPROVED] }
+            approvedAmount: { type: number, format: double }
+            updatedAt: { type: string, format: date-time }
+    SubsidyScheme:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        eligibilityCriteria: { type: string }
+        benefitAmount: { type: number, format: double }

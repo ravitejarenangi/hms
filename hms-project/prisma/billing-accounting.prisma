@@ -1,0 +1,369 @@
+// GST Rate Types
+enum GSTRateType {
+  EXEMPT
+  ZERO
+  FIVE
+  TWELVE
+  EIGHTEEN
+  TWENTYEIGHT
+}
+
+// Invoice Status
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// Payment Method
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  NETBANKING
+  CHEQUE
+  INSURANCE
+  WALLET
+  OTHER
+}
+
+// Account Types
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+// Journal Entry Status
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  APPROVED
+  REJECTED
+  REVERSED
+}
+
+// Financial Year Status
+enum FinancialYearStatus {
+  ACTIVE
+  CLOSED
+  LOCKED
+}
+
+// Tax Invoice Model
+model TaxInvoice {
+  id                String         @id @default(cuid())
+  invoiceNumber     String         @unique
+  patientId         String
+  patient           Patient        @relation(fields: [patientId], references: [id])
+  invoiceDate       DateTime       @default(now())
+  dueDate           DateTime
+  status            InvoiceStatus  @default(PENDING)
+  subtotal          Decimal        @db.Decimal(10, 2)
+  discountAmount    Decimal        @db.Decimal(10, 2) @default(0)
+  taxableAmount     Decimal        @db.Decimal(10, 2)
+  cgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  sgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  igstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal        @db.Decimal(10, 2)
+  paidAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  balanceAmount     Decimal        @db.Decimal(10, 2)
+  notes             String?
+  termsAndConditions String?
+  createdBy         String         // User ID
+  updatedBy         String?        // User ID
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  isGSTRegistered   Boolean        @default(true)
+  customerGSTIN     String?
+  placeOfSupply     String
+  hospitalGSTIN     String
+  invoiceItems      InvoiceItem[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
+  journalEntries    JournalEntry[]
+}
+
+// Invoice Item Model
+model InvoiceItem {
+  id                String      @id @default(cuid())
+  invoiceId         String
+  invoice           TaxInvoice  @relation(fields: [invoiceId], references: [id])
+  itemType          String      // Service, Procedure, Medication, etc.
+  itemId            String      // Reference to the specific item
+  description       String
+  hsnSacCode        String
+  quantity          Int
+  unitPrice         Decimal     @db.Decimal(10, 2)
+  discountPercent   Decimal     @db.Decimal(5, 2) @default(0)
+  discountAmount    Decimal     @db.Decimal(10, 2) @default(0)
+  taxableAmount     Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  cgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  cgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  sgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  sgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  igstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  igstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  departmentId      String?
+  doctorId          String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Payment Model
+model Payment {
+  id                String         @id @default(cuid())
+  invoiceId         String
+  invoice           TaxInvoice     @relation(fields: [invoiceId], references: [id])
+  paymentDate       DateTime       @default(now())
+  paymentMethod     PaymentMethod
+  amount            Decimal        @db.Decimal(10, 2)
+  transactionId     String?
+  chequeNumber      String?
+  bankName          String?
+  notes             String?
+  receivedBy        String         // User ID
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  journalEntryId    String?
+  journalEntry      JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+}
+
+// Credit Note Model (for refunds and returns)
+model CreditNote {
+  id                String         @id @default(cuid())
+  creditNoteNumber  String         @unique
+  invoiceId         String
+  invoice           TaxInvoice     @relation(fields: [invoiceId], references: [id])
+  issueDate         DateTime       @default(now())
+  reason            String
+  subtotal          Decimal        @db.Decimal(10, 2)
+  cgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  sgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  igstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal        @db.Decimal(10, 2)
+  status            String         @default("ISSUED") // ISSUED, ADJUSTED, REFUNDED
+  refundMethod      PaymentMethod?
+  refundTransactionId String?
+  createdBy         String         // User ID
+  approvedBy        String?        // User ID
+  approvedAt        DateTime?
+  reversedBy        String?        // User ID
+  reversedAt        DateTime?
+  reversalEntryId   String?        // Reference to reversal entry
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  creditNoteItems   CreditNoteItem[]
+  journalEntryId    String?
+  journalEntry      JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+}
+
+// Credit Note Item Model
+model CreditNoteItem {
+  id                String      @id @default(cuid())
+  creditNoteId      String
+  creditNote        CreditNote  @relation(fields: [creditNoteId], references: [id])
+  invoiceItemType   String      // Service, Procedure, Medication, etc.
+  invoiceItemId     String      // Reference to the original invoice item
+  description       String
+  hsnSacCode        String
+  quantity          Int
+  unitPrice         Decimal     @db.Decimal(10, 2)
+  taxableAmount     Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  cgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  cgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  sgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  sgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  igstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  igstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Service Price List
+model ServicePriceList {
+  id                String      @id @default(cuid())
+  serviceName       String
+  serviceCode       String      @unique
+  departmentId      String
+  hsnSacCode        String
+  basePrice         Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  isActive          Boolean     @default(true)
+  effectiveFrom     DateTime    @default(now())
+  effectiveTo       DateTime?
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Package Price List
+model PackagePriceList {
+  id                String      @id @default(cuid())
+  packageName       String
+  packageCode       String      @unique
+  departmentId      String
+  hsnSacCode        String
+  basePrice         Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  description       String
+  duration          Int?        // In days, if applicable
+  isActive          Boolean     @default(true)
+  effectiveFrom     DateTime    @default(now())
+  effectiveTo       DateTime?
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  packageItems      PackageItem[]
+}
+
+// Package Item
+model PackageItem {
+  id                String          @id @default(cuid())
+  packageId         String
+  package           PackagePriceList @relation(fields: [packageId], references: [id])
+  itemType          String          // Service, Procedure, Medication, etc.
+  itemId            String          // Reference to the specific item
+  itemName          String
+  quantity          Int
+  unitPrice         Decimal         @db.Decimal(10, 2)
+  totalPrice        Decimal         @db.Decimal(10, 2)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Chart of Accounts
+model ChartOfAccount {
+  id                String      @id @default(cuid())
+  accountCode       String      @unique
+  accountName       String
+  accountType       AccountType
+  parentAccountId   String?
+  parentAccount     ChartOfAccount? @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts     ChartOfAccount[] @relation("AccountHierarchy")
+  description       String?
+  isActive          Boolean     @default(true)
+  departmentId      String?
+  openingBalance    Decimal     @db.Decimal(15, 2) @default(0)
+  currentBalance    Decimal     @db.Decimal(15, 2) @default(0)
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  journalEntryItems JournalEntryItem[]
+}
+
+// Financial Year
+model FinancialYear {
+  id                String              @id @default(cuid())
+  yearName          String              @unique // e.g., "2023-2024"
+  startDate         DateTime
+  endDate           DateTime
+  status            FinancialYearStatus @default(ACTIVE)
+  isCurrent         Boolean             @default(false)
+  closedBy          String?             // User ID
+  closedAt          DateTime?
+  createdBy         String              // User ID
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  journalEntries    JournalEntry[]
+}
+
+// Journal Entry
+model JournalEntry {
+  id                String              @id @default(cuid())
+  entryNumber       String              @unique
+  entryDate         DateTime            @default(now())
+  financialYearId   String
+  financialYear     FinancialYear       @relation(fields: [financialYearId], references: [id])
+  reference         String?             // Reference to source transaction (invoice, payment, etc.)
+  referenceType     String?             // Type of reference (INVOICE, PAYMENT, CREDIT_NOTE, MANUAL)
+  description       String
+  totalDebit        Decimal             @db.Decimal(15, 2)
+  totalCredit       Decimal             @db.Decimal(15, 2)
+  status            JournalEntryStatus  @default(DRAFT)
+  isRecurring       Boolean             @default(false)
+  recurringInterval String?             // DAILY, WEEKLY, MONTHLY, etc.
+  nextRecurringDate DateTime?
+  createdBy         String              // User ID
+  approvedBy        String?             // User ID
+  approvedAt        DateTime?
+  reversedBy        String?             // User ID
+  reversedAt        DateTime?
+  reversalEntryId   String?             // Reference to reversal entry
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  journalItems      JournalEntryItem[]
+  invoices          TaxInvoice[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
+}
+
+// Journal Entry Item
+model JournalEntryItem {
+  id                String          @id @default(cuid())
+  journalEntryId    String
+  journalEntry      JournalEntry    @relation(fields: [journalEntryId], references: [id])
+  accountId         String
+  account           ChartOfAccount  @relation(fields: [accountId], references: [id])
+  description       String?
+  debitAmount       Decimal         @db.Decimal(15, 2) @default(0)
+  creditAmount      Decimal         @db.Decimal(15, 2) @default(0)
+  departmentId      String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// GST Settings
+model GSTSettings {
+  id                String      @id @default(cuid())
+  hospitalGSTIN     String      @unique
+  legalName         String
+  tradeName         String?
+  addressLine1      String
+  addressLine2      String?
+  city              String
+  state             String
+  postalCode        String
+  country           String      @default("India")
+  email             String
+  phone             String
+  panNumber         String
+  gstRegistrationDate DateTime
+  returnFilingFrequency String   @default("MONTHLY") // MONTHLY, QUARTERLY
+  isActive          Boolean     @default(true)
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// HSN/SAC Code Master
+model HSNSACCode {
+  id                String      @id @default(cuid())
+  code              String      @unique
+  description       String
+  type              String      // HSN or SAC
+  gstRateType       GSTRateType
+  cgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  sgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  igstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  isActive          Boolean     @default(true)
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}

@@ -1,0 +1,875 @@
+openapi: 3.0.3
+info:
+  title: HMS Ambulance Management API
+  description: >-
+    This OpenAPI specification documents all ambulance management related
+    endpoints, including ambulance inventory management, dispatch system,
+    real-time location tracking, driver management, service history,
+    and billing integration.
+  version: 1.0.0
+servers:
+  - url: https://hms.example.com/api
+    description: Production server
+  - url: http://localhost:3000/api
+    description: Local dev server
+
+tags:
+  - name: Ambulance Inventory
+  - name: Ambulance Dispatch
+  - name: Location Tracking
+  - name: Driver Management
+  - name: Service History
+  - name: Ambulance Billing
+
+paths:
+  /ambulances/inventory:
+    get:
+      tags: [Ambulance Inventory]
+      summary: Get ambulance inventory with optional filtering
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE]
+        - in: query
+          name: vehicleType
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: List of ambulances with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmbulanceListResponse'
+    post:
+      tags: [Ambulance Inventory]
+      summary: Add a new ambulance to inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmbulanceInput'
+      responses:
+        '201':
+          description: Ambulance created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ambulance'
+    put:
+      tags: [Ambulance Inventory]
+      summary: Update ambulance details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AmbulanceInput'
+                - type: object
+                  properties:
+                    id:
+                      type: string
+                  required: [id]
+      responses:
+        '200':
+          description: Ambulance updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ambulance'
+    delete:
+      tags: [Ambulance Inventory]
+      summary: Delete an ambulance
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Ambulance deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /ambulances/dispatch:
+    get:
+      tags: [Ambulance Dispatch]
+      summary: Get ambulance dispatch requests with optional filtering
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [REQUESTED, ASSIGNED, DISPATCHED, ARRIVED, COMPLETED, CANCELLED]
+        - in: query
+          name: id
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: List of dispatch requests with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchListResponse'
+    post:
+      tags: [Ambulance Dispatch]
+      summary: Create a new ambulance dispatch request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchInput'
+      responses:
+        '201':
+          description: Dispatch request created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispatch'
+    put:
+      tags: [Ambulance Dispatch]
+      summary: Update an ambulance dispatch request status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                status:
+                  type: string
+                  enum: [ASSIGNED, DISPATCHED, ARRIVED, COMPLETED, CANCELLED]
+              required: [id, status]
+      responses:
+        '200':
+          description: Dispatch request updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispatch'
+
+  /ambulances/location-sse:
+    get:
+      tags: [Location Tracking]
+      summary: SSE endpoint for real-time ambulance location updates
+      responses:
+        '200':
+          description: Server-sent events stream for ambulance locations
+          content:
+            text/event-stream:
+              schema:
+                type: string
+    post:
+      tags: [Location Tracking]
+      summary: Update ambulance location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationUpdateInput'
+      responses:
+        '200':
+          description: Location updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /ambulances/drivers:
+    get:
+      tags: [Driver Management]
+      summary: Get ambulance drivers with optional filtering
+      parameters:
+        - in: query
+          name: ambulanceId
+          schema:
+            type: string
+        - in: query
+          name: available
+          schema:
+            type: boolean
+        - in: query
+          name: id
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: List of ambulance drivers with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverListResponse'
+    post:
+      tags: [Driver Management]
+      summary: Assign a driver to an ambulance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverInput'
+      responses:
+        '201':
+          description: Driver assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Driver'
+    put:
+      tags: [Driver Management]
+      summary: Update driver assignment details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/DriverInput'
+                - type: object
+                  properties:
+                    id:
+                      type: string
+                  required: [id]
+      responses:
+        '200':
+          description: Driver assignment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Driver'
+    delete:
+      tags: [Driver Management]
+      summary: Remove a driver assignment
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Driver assignment removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /ambulances/history:
+    get:
+      tags: [Service History]
+      summary: Get ambulance service history
+      parameters:
+        - in: query
+          name: ambulanceId
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [MAINTENANCE, DISPATCH, ALL]
+            default: ALL
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Ambulance service history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+    post:
+      tags: [Service History]
+      summary: Add a new maintenance record to ambulance history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceInput'
+      responses:
+        '201':
+          description: Maintenance record created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Maintenance'
+
+  /ambulances/billing:
+    get:
+      tags: [Ambulance Billing]
+      summary: Get ambulance billing records with optional filtering
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: string
+        - in: query
+          name: dispatchId
+          schema:
+            type: string
+        - in: query
+          name: paymentStatus
+          schema:
+            type: string
+            enum: [PENDING, PAID, PARTIAL, CANCELLED, INSURANCE_PENDING]
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: List of ambulance billing records with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingListResponse'
+    post:
+      tags: [Ambulance Billing]
+      summary: Create a new ambulance billing record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingInput'
+      responses:
+        '201':
+          description: Billing record created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+    put:
+      tags: [Ambulance Billing]
+      summary: Update an ambulance billing record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/BillingInput'
+                - type: object
+                  properties:
+                    id:
+                      type: string
+                  required: [id]
+      responses:
+        '200':
+          description: Billing record updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+
+  /ambulances/billing/calculate:
+    post:
+      tags: [Ambulance Billing]
+      summary: Calculate ambulance billing based on various parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingCalculationInput'
+      responses:
+        '200':
+          description: Calculated billing breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingCalculationResult'
+
+components:
+  schemas:
+    PagedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { type: object }
+        meta:
+          type: object
+          properties:
+            page: { type: integer }
+            limit: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+
+    AmbulanceListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Ambulance'
+
+    AmbulanceInput:
+      type: object
+      required: [registrationNumber, vehicleModel, vehicleType, manufacturingYear, capacity]
+      properties:
+        registrationNumber:
+          type: string
+        vehicleModel:
+          type: string
+        vehicleType:
+          type: string
+          enum: [BASIC_LIFE_SUPPORT, ADVANCED_LIFE_SUPPORT, PATIENT_TRANSPORT, NEONATAL, MOBILE_ICU]
+        manufacturingYear:
+          type: integer
+        capacity:
+          type: integer
+        features:
+          type: array
+          items:
+            type: string
+        purchaseDate:
+          type: string
+          format: date
+        insuranceExpiry:
+          type: string
+          format: date
+
+    Ambulance:
+      allOf:
+        - $ref: '#/components/schemas/AmbulanceInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            status:
+              type: string
+              enum: [AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE]
+            lastMaintenance:
+              type: string
+              format: date-time
+            nextMaintenance:
+              type: string
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    DispatchListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dispatch'
+
+    DispatchInput:
+      type: object
+      required: [pickupLocation, dropLocation, purpose, requestedBy]
+      properties:
+        pickupLocation:
+          type: string
+        dropLocation:
+          type: string
+        purpose:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, NORMAL, HIGH, EMERGENCY]
+          default: NORMAL
+        patientId:
+          type: string
+        requestedBy:
+          type: string
+        notes:
+          type: string
+
+    Dispatch:
+      allOf:
+        - $ref: '#/components/schemas/DispatchInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            ambulanceId:
+              type: string
+            driverId:
+              type: string
+            status:
+              type: string
+              enum: [REQUESTED, ASSIGNED, DISPATCHED, ARRIVED, COMPLETED, CANCELLED]
+            requestedAt:
+              type: string
+              format: date-time
+            dispatchedAt:
+              type: string
+              format: date-time
+            arrivedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    LocationUpdateInput:
+      type: object
+      required: [ambulanceId, latitude, longitude]
+      properties:
+        ambulanceId:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        speed:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE]
+
+    DriverListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Driver'
+
+    DriverInput:
+      type: object
+      required: [ambulanceId, driverId, licenseNumber]
+      properties:
+        ambulanceId:
+          type: string
+        driverId:
+          type: string
+        licenseNumber:
+          type: string
+        licenseExpiry:
+          type: string
+          format: date
+        isAvailable:
+          type: boolean
+          default: true
+
+    Driver:
+      allOf:
+        - $ref: '#/components/schemas/DriverInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    HistoryResponse:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                oneOf:
+                  - $ref: '#/components/schemas/Maintenance'
+                  - $ref: '#/components/schemas/Dispatch'
+                  - $ref: '#/components/schemas/HistoryItem'
+
+    HistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [MAINTENANCE, DISPATCH]
+        date:
+          type: string
+          format: date-time
+        details:
+          type: object
+
+    MaintenanceInput:
+      type: object
+      required: [ambulanceId, maintenanceType, description, performedBy, performedAt]
+      properties:
+        ambulanceId:
+          type: string
+        maintenanceType:
+          type: string
+          enum: [ROUTINE, REPAIR, INSPECTION, EMERGENCY, UPGRADE, OTHER]
+        description:
+          type: string
+        performedBy:
+          type: string
+        performedAt:
+          type: string
+          format: date-time
+        cost:
+          type: number
+          format: double
+        odometer:
+          type: integer
+        nextMaintenanceDue:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    Maintenance:
+      allOf:
+        - $ref: '#/components/schemas/MaintenanceInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    BillingListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Billing'
+
+    BillingInput:
+      type: object
+      required: [dispatchId, baseCharge, distanceCharge, totalAmount]
+      properties:
+        dispatchId:
+          type: string
+        baseCharge:
+          type: number
+          format: double
+        distanceCharge:
+          type: number
+          format: double
+        waitingCharge:
+          type: number
+          format: double
+        equipmentCharge:
+          type: number
+          format: double
+        totalAmount:
+          type: number
+          format: double
+        insuranceCovered:
+          type: boolean
+          default: false
+        insuranceProvider:
+          type: string
+        insurancePolicyNumber:
+          type: string
+        notes:
+          type: string
+
+    Billing:
+      allOf:
+        - $ref: '#/components/schemas/BillingInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            paymentStatus:
+              type: string
+              enum: [PENDING, PAID, PARTIAL, CANCELLED, INSURANCE_PENDING]
+            invoiceNumber:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    BillingCalculationInput:
+      type: object
+      required: [distance, vehicleType, serviceLevel]
+      properties:
+        distance:
+          type: number
+          format: double
+        vehicleType:
+          type: string
+          enum: [BASIC_LIFE_SUPPORT, ADVANCED_LIFE_SUPPORT, PATIENT_TRANSPORT, NEONATAL, MOBILE_ICU]
+        serviceLevel:
+          type: string
+          enum: [BASIC, STANDARD, PREMIUM]
+        timeOfDay:
+          type: string
+          enum: [NORMAL, NIGHT, HOLIDAY]
+          default: NORMAL
+        waitingTime:
+          type: integer
+          default: 0
+        zone:
+          type: string
+          enum: [URBAN, SUBURBAN, RURAL, HIGHWAY]
+          default: URBAN
+        equipment:
+          type: array
+          items:
+            type: string
+        medicalStaff:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              count:
+                type: integer
+        insuranceInfo:
+          type: object
+          properties:
+            provider:
+              type: string
+            policyNumber:
+              type: string
+            coverageType:
+              type: string
+              enum: [BASIC, STANDARD, PREMIUM, FULL]
+
+    BillingCalculationResult:
+      type: object
+      properties:
+        breakdown:
+          type: object
+          properties:
+            baseRate:
+              type: number
+              format: double
+            distanceCharge:
+              type: number
+              format: double
+            waitingCharge:
+              type: number
+              format: double
+            equipmentCharge:
+              type: number
+              format: double
+            staffCharge:
+              type: number
+              format: double
+            subtotal:
+              type: number
+              format: double
+            insuranceCoverage:
+              type: number
+              format: double
+            patientResponsibility:
+              type: number
+              format: double
+            tax:
+              type: number
+              format: double
+            totalAmount:
+              type: number
+              format: double
+        rates:
+          type: object
+          properties:
+            baseRate:
+              type: number
+              format: double
+            distanceRate:
+              type: number
+              format: double
+            timeAdjustment:
+              type: number
+              format: double
+            gstRate:
+              type: number
+              format: double

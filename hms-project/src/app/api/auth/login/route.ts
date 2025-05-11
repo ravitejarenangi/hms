@@ -6,10 +6,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-i
 // Mock user for testing
 const mockUser = {
   id: '1',
-  name: 'Admin User',
-  email: 'admin@example.com',
-  password: 'admin123', // In a real app, this would be hashed
-  roles: ['admin'],
+  name: 'Super Admin User',
+  email: 'superadmin@example.com',
+  password: 'superadmin123', // In a real app, this would be hashed
+  roles: ['superadmin'],
 };
 
 export async function POST(request: NextRequest) {
