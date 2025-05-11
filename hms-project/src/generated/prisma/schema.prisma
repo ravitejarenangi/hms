@@ -84,28 +84,172 @@ model UserPreference {
 
 // Doctor model for doctor-specific information
 model Doctor {
+  id                         String   @id @default(cuid())
+  userId                     String   @unique
+  user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber              String   @unique
+  specialization             String
+  department                 String?
+  qualification              String
+  experience                 Int // In years
+  consultationFee            Decimal  @default(0)
+  availableFrom              String? // Time in HH:MM format
+  availableTo                String? // Time in HH:MM format
+  availableDays              Int[] // 0-6 for Sunday-Saturday
+  maxAppointmentsPerDay      Int      @default(20)
+  isAvailableForOnline       Boolean  @default(false)
+  about                      String?  @db.Text
+  rating                     Float? // Average rating from patients (1-5)
+  totalPatients              Int      @default(0) // Total number of patients assigned
+  totalAppointments          Int      @default(0) // Total appointments conducted
+  appointmentCompletionRate  Float? // Percentage of completed appointments
+  averageAppointmentDuration Int? // Average duration of appointments in minutes
+  preferredWorkingHours      Json? // Detailed working hours preferences as JSON
+  vacationDays               Int      @default(0) // Vacation days taken in current year
+  vacationAllowance          Int      @default(20) // Annual vacation allowance
+  isAcceptingNewPatients     Boolean  @default(true) // Whether doctor is accepting new patients
+  maxPatientsPerDay          Int      @default(0) // Maximum patients per day (0 = no limit)
+  billingRate                Decimal  @default(0) // Hourly billing rate for co-consultations
+  referralCount              Int      @default(0) // Number of referrals made
+  specialtyFocus             String[] // Areas of specialty focus within main specialization
+  certifications             String[] // Professional certifications
+  languages                  String[] // Languages spoken
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  // Relations
+  departments        DoctorDepartment[]
+  specialities       DoctorSpeciality[]
+  prescriptions      Prescription[]
+  availability       DoctorAvailability[]
+  performanceMetrics DoctorPerformanceMetric[]
+  patientAssignments PatientAssignment[]
+  referralsInitiated DoctorReferral[]          @relation("ReferringDoctor")
+  referralsReceived  DoctorReferral[]          @relation("ReceivingDoctor")
+  coConsultations    DoctorCoConsultation[]
+}
+
+// Doctor availability model for detailed scheduling
+model DoctorAvailability {
+  id           String    @id @default(cuid())
+  doctorId     String
+  doctor       Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int // 0-6 for Sunday-Saturday
+  startTime    String // HH:MM format
+  endTime      String // HH:MM format
+  isRecurring  Boolean   @default(true)
+  date         DateTime? // For non-recurring specific dates
+  isAvailable  Boolean   @default(true)
+  slotDuration Int       @default(30) // Duration of each slot in minutes
+  maxPatients  Int       @default(0) // Maximum patients per slot (0 = unlimited)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([doctorId, dayOfWeek, startTime, date])
+}
+
+// Doctor performance metrics model
+model DoctorPerformanceMetric {
   id                    String   @id @default(cuid())
-  userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  licenseNumber         String   @unique
-  specialization        String
-  department            String?
-  qualification         String
-  experience            Int // In years
-  consultationFee       Decimal  @default(0)
-  availableFrom         String? // Time in HH:MM format
-  availableTo           String? // Time in HH:MM format
-  availableDays         Int[] // 0-6 for Sunday-Saturday
-  maxAppointmentsPerDay Int      @default(20)
-  isAvailableForOnline  Boolean  @default(false)
-  about                 String?  @db.Text
+  doctorId              String
+  doctor                Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  period                String // daily, weekly, monthly, quarterly, yearly
+  startDate             DateTime
+  endDate               DateTime
+  totalAppointments     Int      @default(0)
+  completedAppointments Int      @default(0)
+  cancelledAppointments Int      @default(0)
+  noShowAppointments    Int      @default(0)
+  averageRating         Float? // Average patient rating for this period
+  averageDuration       Int? // Average appointment duration in minutes
+  patientSatisfaction   Float? // Calculated satisfaction score
+  revenueGenerated      Decimal  @default(0)
+  referralsReceived     Int      @default(0)
+  referralsMade         Int      @default(0)
+  notes                 String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  // Relations
-  departments   DoctorDepartment[]
-  specialities  DoctorSpeciality[]
-  prescriptions Prescription[]
+  @@unique([doctorId, period, startDate])
+}
+
+// Patient assignment model for tracking doctor-patient relationships
+model PatientAssignment {
+  id              String                  @id @default(cuid())
+  patientId       String
+  doctorId        String
+  doctor          Doctor                  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  assignmentDate  DateTime                @default(now())
+  isPrimaryDoctor Boolean                 @default(false)
+  status          PatientAssignmentStatus @default(ACTIVE)
+  notes           String?
+  lastAppointment DateTime?
+  nextAppointment DateTime?
+  createdBy       String // User who created the assignment
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([patientId, doctorId])
+}
+
+// Patient assignment status enum
+enum PatientAssignmentStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  COMPLETED
+}
+
+// Doctor referral model for tracking referrals between doctors
+model DoctorReferral {
+  id                String           @id @default(cuid())
+  patientId         String
+  referringDoctorId String
+  referringDoctor   Doctor           @relation("ReferringDoctor", fields: [referringDoctorId], references: [id])
+  receivingDoctorId String
+  receivingDoctor   Doctor           @relation("ReceivingDoctor", fields: [receivingDoctorId], references: [id])
+  reason            String
+  notes             String?
+  priority          ReferralPriority @default(NORMAL)
+  status            ReferralStatus   @default(PENDING)
+  appointmentId     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+// Referral priority enum
+enum ReferralPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Referral status enum
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+// Doctor co-consultation model for tracking multi-doctor consultations
+model DoctorCoConsultation {
+  id            String   @id @default(cuid())
+  appointmentId String
+  doctorId      String
+  doctor        Doctor   @relation(fields: [doctorId], references: [id])
+  role          String // PRIMARY, CONSULTANT, SPECIALIST
+  notes         String?
+  billingAmount Decimal  @default(0)
+  duration      Int? // Duration in minutes
+  createdBy     String // User who created the record
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([appointmentId, doctorId])
 }
 
 // Nurse model for nurse-specific information
@@ -3274,4 +3418,249 @@ enum ComplaintStatus {
   RESOLVED
   CLOSED
   REOPENED
+}
+
+// Radiology Service Catalog model
+model RadiologyServiceCatalog {
+  id                      String       @id @default(cuid())
+  name                    String
+  description             String?
+  modalityType            ModalityType
+  price                   Decimal
+  duration                Int // Duration in minutes
+  preparationInstructions String?      @db.Text
+  active                  Boolean      @default(true)
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  // Relations
+  radiologyRequests RadiologyRequest[]
+}
+
+// Modality Type enum
+enum ModalityType {
+  XRAY
+  CT
+  MRI
+  ULTRASOUND
+  MAMMOGRAPHY
+  FLUOROSCOPY
+  DEXA
+  PET
+  NUCLEAR_MEDICINE
+  ANGIOGRAPHY
+}
+
+// Radiology Request model
+model RadiologyRequest {
+  id               String                  @id @default(cuid())
+  patientId        String
+  doctorId         String
+  serviceCatalogId String
+  serviceCatalog   RadiologyServiceCatalog @relation(fields: [serviceCatalogId], references: [id])
+  requestedAt      DateTime                @default(now())
+  scheduledAt      DateTime?
+  priority         RequestPriority         @default(ROUTINE)
+  status           RadiologyStatus         @default(REQUESTED)
+  clinicalInfo     String?                 @db.Text
+  allergies        String?
+  previousExams    String?
+  notes            String?
+  reasonForExam    String
+  isPregnant       Boolean?
+  weight           Float? // In kg
+  height           Float? // In cm
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  // Relations
+  radiologyStudy   RadiologyStudy?
+  radiologyBilling RadiologyBilling?
+}
+
+// Radiology Status enum
+enum RadiologyStatus {
+  REQUESTED
+  SCHEDULED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  REPORTED
+  VERIFIED
+  DELIVERED
+  CANCELLED
+}
+
+// Request Priority enum
+enum RequestPriority {
+  STAT // Immediate
+  URGENT // Within hours
+  ROUTINE // Standard scheduling
+  ELECTIVE // Non-urgent
+}
+
+// Radiology Study model (DICOM Study level)
+model RadiologyStudy {
+  id               String           @id @default(cuid())
+  requestId        String           @unique
+  request          RadiologyRequest @relation(fields: [requestId], references: [id])
+  studyInstanceUID String           @unique // DICOM Study Instance UID
+  studyDate        DateTime
+  studyDescription String?
+  accessionNumber  String           @unique
+  performedBy      String // Technician ID
+  radiologistId    String? // Assigned radiologist
+  status           RadiologyStatus  @default(IN_PROGRESS)
+  patientPosition  String?
+  studyNotes       String?          @db.Text
+  radiationDose    Float? // For applicable modalities
+  contrastUsed     Boolean          @default(false)
+  contrastDetails  String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  series RadiologySeries[]
+  report RadiologyReport?
+}
+
+// Radiology Series model (DICOM Series level)
+model RadiologySeries {
+  id                String         @id @default(cuid())
+  studyId           String
+  study             RadiologyStudy @relation(fields: [studyId], references: [id])
+  seriesInstanceUID String         @unique // DICOM Series Instance UID
+  seriesNumber      Int
+  seriesDescription String?
+  modality          ModalityType
+  bodyPartExamined  String?
+  patientPosition   String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  instances RadiologyInstance[]
+}
+
+// Radiology Instance model (DICOM Instance/Image level)
+model RadiologyInstance {
+  id                String          @id @default(cuid())
+  seriesId          String
+  series            RadiologySeries @relation(fields: [seriesId], references: [id])
+  sopInstanceUID    String          @unique // DICOM SOP Instance UID
+  sopClassUID       String // DICOM SOP Class UID
+  instanceNumber    Int
+  imageType         String // DICOM, JPEG, etc.
+  filePath          String // Path to the stored DICOM file
+  thumbnailPath     String? // Path to thumbnail for quick viewing
+  transferSyntaxUID String? // DICOM Transfer Syntax UID
+  rows              Int? // Image rows
+  columns           Int? // Image columns
+  bitsAllocated     Int? // Bits allocated
+  windowCenter      Float? // Default window center
+  windowWidth       Float? // Default window width
+  metadata          Json? // Additional DICOM metadata as JSON
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Enhanced Radiology Report model
+model RadiologyReport {
+  id                           String         @id @default(cuid())
+  studyId                      String         @unique
+  study                        RadiologyStudy @relation(fields: [studyId], references: [id])
+  findings                     String         @db.Text
+  impression                   String         @db.Text
+  recommendation               String?        @db.Text
+  diagnosisCode                String? // ICD code if applicable
+  radiologistId                String // User ID of radiologist
+  reportStatus                 ReportStatus   @default(DRAFT)
+  reportedAt                   DateTime       @default(now())
+  verifiedBy                   String? // User ID of verifier
+  verifiedAt                   DateTime?
+  signatureImage               String? // Path to radiologist's signature image
+  templateUsed                 String? // Template ID if a template was used
+  keyImages                    String[] // Array of instance IDs marked as key images
+  criticalResult               Boolean        @default(false)
+  criticalResultCommunicatedTo String?
+  criticalResultCommunicatedAt DateTime?
+  createdAt                    DateTime       @default(now())
+  updatedAt                    DateTime       @updatedAt
+}
+
+// Report Status enum
+enum ReportStatus {
+  DRAFT
+  PRELIMINARY
+  FINAL
+  AMENDED
+  ADDENDUM
+}
+
+// Radiology Billing model
+model RadiologyBilling {
+  id                         String                 @id @default(cuid())
+  requestId                  String                 @unique
+  request                    RadiologyRequest       @relation(fields: [requestId], references: [id])
+  invoiceNumber              String                 @unique
+  baseAmount                 Decimal
+  contrastAmount             Decimal                @default(0)
+  additionalFees             Decimal                @default(0)
+  discount                   Decimal                @default(0)
+  tax                        Decimal                @default(0)
+  totalAmount                Decimal
+  paymentStatus              RadiologyPaymentStatus @default(PENDING)
+  paymentMethod              String?
+  paymentDate                DateTime?
+  insuranceCovered           Boolean                @default(false)
+  insuranceProvider          String?
+  insurancePolicyNumber      String?
+  insuranceAuthorizationCode String?
+  insuranceAmount            Decimal                @default(0)
+  patientResponsibility      Decimal                @default(0)
+  notes                      String?
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+}
+
+// Radiology Payment Status enum
+enum RadiologyPaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  CANCELLED
+}
+
+// Radiologist Assignment model
+model RadiologistAssignment {
+  id               String         @id @default(cuid())
+  radiologistId    String // User ID of radiologist
+  modalityTypes    ModalityType[] // Array of modality types the radiologist is assigned to
+  isOnCall         Boolean        @default(false)
+  startTime        DateTime
+  endTime          DateTime
+  maxStudiesPerDay Int            @default(20)
+  currentLoad      Int            @default(0) // Current number of studies assigned
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+// Radiology Analytics model
+model RadiologyAnalytics {
+  id                     String   @id @default(cuid())
+  period                 String // daily, weekly, monthly, yearly
+  startDate              DateTime
+  endDate                DateTime
+  totalStudies           Int      @default(0)
+  studiesByModality      Json? // Count by modality type
+  studiesByStatus        Json? // Count by status
+  studiesByBodyPart      Json? // Count by body part
+  averageReportTime      Int? // Average time to report in minutes
+  averageWaitTime        Int? // Average wait time in minutes
+  radiologistPerformance Json? // Performance metrics by radiologist
+  revenueGenerated       Decimal  @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }

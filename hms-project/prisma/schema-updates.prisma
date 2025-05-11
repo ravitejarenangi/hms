@@ -1,0 +1,248 @@
+// Radiology Service Catalog
+model RadiologyServiceCatalog {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  description       String?  @db.Text
+  modalityType      ModalityType
+  bodyPart          String
+  price             Decimal
+  preparationNotes  String?  @db.Text
+  duration          Int      // Duration in minutes
+  isActive          Boolean  @default(true)
+  requiresContrast  Boolean  @default(false)
+  dicomSupported    Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  radiologyRequests RadiologyRequest[]
+}
+
+// Modality Type enum
+enum ModalityType {
+  XRAY
+  CT
+  MRI
+  ULTRASOUND
+  MAMMOGRAPHY
+  FLUOROSCOPY
+  DEXA
+  PET
+  NUCLEAR_MEDICINE
+  ANGIOGRAPHY
+}
+
+// Radiology Request model
+model RadiologyRequest {
+  id                 String               @id @default(cuid())
+  patientId          String
+  doctorId           String
+  serviceCatalogId   String
+  serviceCatalog     RadiologyServiceCatalog @relation(fields: [serviceCatalogId], references: [id])
+  requestedAt        DateTime             @default(now())
+  scheduledAt        DateTime?
+  priority           RequestPriority      @default(ROUTINE)
+  status             RadiologyStatus      @default(REQUESTED)
+  clinicalInfo       String?              @db.Text
+  allergies          String?
+  previousExams      String?
+  notes              String?
+  reasonForExam      String
+  isPregnant         Boolean?
+  weight             Float?               // In kg
+  height             Float?               // In cm
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  // Relations
+  radiologyStudy     RadiologyStudy?
+  radiologyBilling   RadiologyBilling?
+}
+
+// Radiology Status enum
+enum RadiologyStatus {
+  REQUESTED
+  SCHEDULED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  REPORTED
+  VERIFIED
+  DELIVERED
+  CANCELLED
+}
+
+// Request Priority enum
+enum RequestPriority {
+  STAT            // Immediate
+  URGENT          // Within hours
+  ROUTINE         // Standard scheduling
+  ELECTIVE        // Non-urgent
+}
+
+// Radiology Study model (DICOM Study level)
+model RadiologyStudy {
+  id                String               @id @default(cuid())
+  requestId         String               @unique
+  request           RadiologyRequest     @relation(fields: [requestId], references: [id])
+  studyInstanceUID  String               @unique // DICOM Study Instance UID
+  studyDate         DateTime
+  studyDescription  String?
+  accessionNumber   String               @unique
+  performedBy       String               // Technician ID
+  radiologistId     String?              // Assigned radiologist
+  status            RadiologyStatus      @default(IN_PROGRESS)
+  patientPosition   String?
+  studyNotes        String?              @db.Text
+  radiationDose     Float?               // For applicable modalities
+  contrastUsed      Boolean              @default(false)
+  contrastDetails   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  // Relations
+  series            RadiologySeries[]
+  report            RadiologyReport?
+}
+
+// Radiology Series model (DICOM Series level)
+model RadiologySeries {
+  id                String           @id @default(cuid())
+  studyId           String
+  study             RadiologyStudy   @relation(fields: [studyId], references: [id])
+  seriesInstanceUID String           @unique // DICOM Series Instance UID
+  seriesNumber      Int
+  seriesDescription String?
+  modality          ModalityType
+  bodyPartExamined  String?
+  patientPosition   String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  instances         RadiologyInstance[]
+}
+
+// Radiology Instance model (DICOM Instance/Image level)
+model RadiologyInstance {
+  id                   String           @id @default(cuid())
+  seriesId             String
+  series               RadiologySeries  @relation(fields: [seriesId], references: [id])
+  sopInstanceUID       String           @unique // DICOM SOP Instance UID
+  sopClassUID          String           // DICOM SOP Class UID
+  instanceNumber       Int
+  imageType            String           // DICOM, JPEG, etc.
+  filePath             String           // Path to the stored DICOM file
+  thumbnailPath        String?          // Path to thumbnail for quick viewing
+  transferSyntaxUID    String?          // DICOM Transfer Syntax UID
+  rows                 Int?             // Image rows
+  columns              Int?             // Image columns
+  bitsAllocated        Int?             // Bits allocated
+  windowCenter         Float?           // Default window center
+  windowWidth          Float?           // Default window width
+  metadata             Json?            // Additional DICOM metadata as JSON
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+// Enhanced Radiology Report model
+model RadiologyReport {
+  id                String         @id @default(cuid())
+  studyId           String         @unique
+  study             RadiologyStudy @relation(fields: [studyId], references: [id])
+  findings          String         @db.Text
+  impression        String         @db.Text
+  recommendation    String?        @db.Text
+  diagnosisCode     String?        // ICD code if applicable
+  radiologistId     String         // User ID of radiologist
+  reportStatus      ReportStatus   @default(DRAFT)
+  reportedAt        DateTime       @default(now())
+  verifiedBy        String?        // User ID of verifier
+  verifiedAt        DateTime?
+  signatureImage    String?        // Path to radiologist's signature image
+  templateUsed      String?        // Template ID if a template was used
+  keyImages         String[]       // Array of instance IDs marked as key images
+  criticalResult    Boolean        @default(false)
+  criticalResultCommunicatedTo String?
+  criticalResultCommunicatedAt DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+// Report Status enum
+enum ReportStatus {
+  DRAFT
+  PRELIMINARY
+  FINAL
+  AMENDED
+  ADDENDUM
+}
+
+// Radiology Billing model
+model RadiologyBilling {
+  id                String           @id @default(cuid())
+  requestId         String           @unique
+  request           RadiologyRequest @relation(fields: [requestId], references: [id])
+  invoiceNumber     String           @unique
+  baseAmount        Decimal
+  contrastAmount    Decimal          @default(0)
+  additionalFees    Decimal          @default(0)
+  discount          Decimal          @default(0)
+  tax               Decimal          @default(0)
+  totalAmount       Decimal
+  paymentStatus     PaymentStatus    @default(PENDING)
+  paymentMethod     String?
+  paymentDate       DateTime?
+  insuranceCovered  Boolean          @default(false)
+  insuranceProvider String?
+  insurancePolicyNumber String?
+  insuranceAuthorizationCode String?
+  insuranceAmount   Decimal          @default(0)
+  patientResponsibility Decimal      @default(0)
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+// Payment Status enum
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  CANCELLED
+}
+
+// Radiologist Assignment model
+model RadiologistAssignment {
+  id                String         @id @default(cuid())
+  radiologistId     String         // User ID of radiologist
+  modalityTypes     ModalityType[] // Array of modality types the radiologist is assigned to
+  isOnCall          Boolean        @default(false)
+  startTime         DateTime
+  endTime           DateTime
+  maxStudiesPerDay  Int            @default(20)
+  currentLoad       Int            @default(0) // Current number of studies assigned
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+// Radiology Analytics model
+model RadiologyAnalytics {
+  id                String         @id @default(cuid())
+  period            String         // daily, weekly, monthly, yearly
+  startDate         DateTime
+  endDate           DateTime
+  totalStudies      Int            @default(0)
+  studiesByModality Json?          // Count by modality type
+  studiesByStatus   Json?          // Count by status
+  studiesByBodyPart Json?          // Count by body part
+  averageReportTime Int?           // Average time to report in minutes
+  averageWaitTime   Int?           // Average wait time in minutes
+  radiologistPerformance Json?     // Performance metrics by radiologist
+  revenueGenerated  Decimal        @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}

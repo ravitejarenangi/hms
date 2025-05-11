@@ -16,6 +16,7 @@ import {
   Science as LabIcon,
   AccountBalance as AccountingIcon,
   Person as PatientIcon,
+  BiotechOutlined as RadiologyIcon,
 } from "@mui/icons-material";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
@@ -140,6 +141,37 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       title: "Doctors",
       path: "/doctors",
       icon: <DoctorIcon />,
+    },
+    {
+      title: "Radiology",
+      path: "/radiology",
+      icon: <RadiologyIcon />,
+      children: [
+        {
+          title: "Dashboard",
+          path: "/radiology",
+        },
+        {
+          title: "Service Catalog",
+          path: "/radiology?tab=0",
+        },
+        {
+          title: "Imaging Requests",
+          path: "/radiology?tab=1",
+        },
+        {
+          title: "Image Viewer",
+          path: "/radiology?tab=2",
+        },
+        {
+          title: "Reports",
+          path: "/radiology?tab=3",
+        },
+        {
+          title: "Analytics",
+          path: "/radiology?tab=4",
+        },
+      ],
     },
   ];
 

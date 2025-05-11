@@ -124,7 +124,8 @@ model Doctor {
   availability          DoctorAvailability[]
   performanceMetrics    DoctorPerformanceMetric[]
   patientAssignments    PatientAssignment[]
-  referrals             DoctorReferral[]
+  referralsInitiated    DoctorReferral[] @relation("ReferringDoctor")
+  referralsReceived     DoctorReferral[] @relation("ReceivingDoctor")
   coConsultations       DoctorCoConsultation[]
 }
 
@@ -205,9 +206,9 @@ model DoctorReferral {
   id                String   @id @default(cuid())
   patientId         String
   referringDoctorId String
-  referringDoctor   Doctor   @relation(fields: [referringDoctorId], references: [id], name: "ReferringDoctor")
+  referringDoctor   Doctor   @relation("ReferringDoctor", fields: [referringDoctorId], references: [id])
   receivingDoctorId String
-  receivingDoctor   Doctor   @relation(fields: [receivingDoctorId], references: [id], name: "ReceivingDoctor")
+  receivingDoctor   Doctor   @relation("ReceivingDoctor", fields: [receivingDoctorId], references: [id])
   reason            String
   notes             String?
   priority          ReferralPriority @default(NORMAL)
@@ -3306,6 +3307,299 @@ model LinenInventory {
   transactions LinenTransaction[]
 }
 
+// Bed model
+model Bed {
+  id               String       @id @default(cuid())
+  bedNumber        String       @unique
+  roomId           String
+  room             Room         @relation(fields: [roomId], references: [id])
+  bedType          BedType
+  status           BedStatus    @default(AVAILABLE)
+  isActive         Boolean      @default(true)
+  features         String[]     // Features like oxygen, call button, etc.
+  notes            String?
+  maintenanceNotes String?
+  lastMaintenance  DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  allocations      BedAllocation[]
+  transfers        BedTransfer[]
+  maintenances     BedMaintenance[]
+  reservations     BedReservation[]
+}
+
+// Bed type enum
+enum BedType {
+  STANDARD
+  ELECTRIC
+  ICU
+  PEDIATRIC
+  BARIATRIC
+  LABOR_DELIVERY
+  STRETCHER
+  PSYCHIATRIC
+  HOMECARE
+  SURGICAL
+}
+
+// Bed status enum
+enum BedStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  UNDER_MAINTENANCE
+  CLEANING
+  OUT_OF_SERVICE
+}
+
+// Bed allocation model
+model BedAllocation {
+  id                String          @id @default(cuid())
+  bedId             String
+  bed               Bed             @relation(fields: [bedId], references: [id])
+  patientId         String          // Reference to a patient
+  admissionId       String?         // Reference to an admission record if applicable
+  allocatedAt       DateTime        @default(now())
+  dischargedAt      DateTime?
+  expectedDischarge DateTime?
+  status            AllocationStatus @default(CURRENT)
+  allocatedBy       String          // User ID
+  dischargedBy      String?         // User ID
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  billing           BedBilling?
+}
+
+// Allocation status enum
+enum AllocationStatus {
+  CURRENT
+  DISCHARGED
+  TRANSFERRED
+  TEMPORARY_LEAVE
+}
+
+// Bed transfer model
+model BedTransfer {
+  id              String    @id @default(cuid())
+  patientId       String    // Reference to a patient
+  fromBedId       String
+  fromBed         Bed       @relation(fields: [fromBedId], references: [id])
+  toBedId         String?   // May be null if transferring out of the hospital
+  transferReason  String
+  authorizedBy    String    // User ID
+  requestedBy     String    // User ID
+  requestedAt     DateTime  @default(now())
+  completedAt     DateTime?
+  status          TransferStatus @default(REQUESTED)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Transfer status enum
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+// Bed maintenance model
+model BedMaintenance {
+  id               String           @id @default(cuid())
+  bedId            String
+  bed              Bed              @relation(fields: [bedId], references: [id])
+  maintenanceType  MaintenanceType
+  scheduledAt      DateTime
+  completedAt      DateTime?
+  performedBy      String?          // User ID or vendor
+  status           MaintenanceStatus @default(SCHEDULED)
+  description      String?
+  findings         String?
+  actions          String?
+  nextMaintenance  DateTime?
+  createdBy        String           // User ID
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+// Maintenance type enum
+enum MaintenanceType {
+  ROUTINE
+  PREVENTIVE
+  CORRECTIVE
+  EMERGENCY
+  INSPECTION
+}
+
+// Maintenance status enum
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+// Bed reservation model
+model BedReservation {
+  id               String           @id @default(cuid())
+  bedId            String
+  bed              Bed              @relation(fields: [bedId], references: [id])
+  patientId        String?          // Reference to a patient (optional for pre-admission)
+  reservationType  ReservationType
+  startTime        DateTime
+  endTime          DateTime?
+  requestedBy      String           // User ID
+  authorizedBy     String?          // User ID
+  status           ReservationStatus @default(REQUESTED)
+  priority         ReservationPriority @default(NORMAL)
+  notes            String?
+  cancellationReason String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+// Reservation type enum
+enum ReservationType {
+  PRE_ADMISSION
+  POST_SURGERY
+  EMERGENCY
+  TRANSFER
+  TEMPORARY
+}
+
+// Reservation status enum
+enum ReservationStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  EXPIRED
+}
+
+// Reservation priority enum
+enum ReservationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Bed billing model
+model BedBilling {
+  id                String        @id @default(cuid())
+  allocationId      String        @unique
+  allocation        BedAllocation @relation(fields: [allocationId], references: [id])
+  baseRate          Decimal
+  totalDays         Int
+  additionalCharges Decimal       @default(0)
+  discounts         Decimal       @default(0)
+  totalAmount       Decimal
+  billingStatus     BillingStatus @default(PENDING)
+  invoiceNumber     String?
+  billedBy          String        // User ID
+  billedAt          DateTime      @default(now())
+  paidAmount        Decimal       @default(0)
+  paidAt            DateTime?
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+// Billing status enum
+enum BillingStatus {
+  PENDING
+  BILLED
+  PARTIALLY_PAID
+  PAID
+  WAIVED
+  CANCELLED
+}
+
+// Bed pricing model
+model BedPricing {
+  id                 String   @id @default(cuid())
+  bedType            BedType
+  roomType           RoomType
+  baseRate           Decimal  // Daily rate
+  hourlyRate         Decimal? // For hourly billing if applicable
+  minimumStay        Int      @default(1) // Minimum stay in days
+  discountAfterDays  Int?     // Days after which discount applies
+  discountPercentage Decimal? // Discount percentage after specified days
+  taxPercentage      Decimal  @default(0)
+  isActive           Boolean  @default(true)
+  effectiveFrom      DateTime @default(now())
+  effectiveTo        DateTime?
+  createdBy          String   // User ID
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Ward model
+model Ward {
+  id          String   @id @default(cuid())
+  name        String
+  floor       Int
+  wing        String?
+  department  String?  // Department this ward belongs to
+  capacity    Int
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Room service request model
+model RoomServiceRequest {
+  id               String                @id @default(cuid())
+  roomId           String
+  room             Room                  @relation(fields: [roomId], references: [id])
+  patientId        String?               // Reference to a patient
+  requestType      RoomServiceType
+  requestDetails   String
+  requestedBy      String                // User ID
+  requestedAt      DateTime              @default(now())
+  assignedTo       String?               // User ID
+  assignedAt       DateTime?
+  status           RoomServiceStatus     @default(PENDING)
+  priority         TaskPriority          @default(NORMAL)
+  completedAt      DateTime?
+  completedBy      String?               // User ID
+  feedback         String?
+  feedbackRating   Int?                  // 1-5 scale
+  notes            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+// Room service type enum
+enum RoomServiceType {
+  HOUSEKEEPING
+  MAINTENANCE
+  FOOD_SERVICE
+  LAUNDRY
+  MEDICAL_EQUIPMENT
+  PATIENT_ASSISTANCE
+  OTHER
+}
+
+// Room service status enum
+enum RoomServiceStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
 // Linen transaction model
 model LinenTransaction {
   id              String               @id @default(cuid())
@@ -3417,4 +3711,616 @@ enum ComplaintStatus {
   RESOLVED
   CLOSED
   REOPENED
+}
+
+// Radiology Service Catalog model
+model RadiologyServiceCatalog {
+  id                String             @id @default(cuid())
+  name              String
+  description       String?
+  modalityType      ModalityType
+  price             Decimal
+  duration          Int                // Duration in minutes
+  preparationInstructions String?       @db.Text
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  radiologyRequests RadiologyRequest[]
+}
+
+// Modality Type enum
+enum ModalityType {
+  XRAY
+  CT
+  MRI
+  ULTRASOUND
+  MAMMOGRAPHY
+  FLUOROSCOPY
+  DEXA
+  PET
+  NUCLEAR_MEDICINE
+  ANGIOGRAPHY
+}
+
+// Radiology Request model
+model RadiologyRequest {
+  id                 String               @id @default(cuid())
+  patientId          String
+  doctorId           String
+  serviceCatalogId   String
+  serviceCatalog     RadiologyServiceCatalog @relation(fields: [serviceCatalogId], references: [id])
+  requestedAt        DateTime             @default(now())
+  scheduledAt        DateTime?
+  priority           RequestPriority      @default(ROUTINE)
+  status             RadiologyStatus      @default(REQUESTED)
+  clinicalInfo       String?              @db.Text
+  allergies          String?
+  previousExams      String?
+  notes              String?
+  reasonForExam      String
+  isPregnant         Boolean?
+  weight             Float?               // In kg
+  height             Float?               // In cm
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  // Relations
+  radiologyStudy     RadiologyStudy?
+  radiologyBilling   RadiologyBilling?
+}
+
+// Radiology Status enum
+enum RadiologyStatus {
+  REQUESTED
+  SCHEDULED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  REPORTED
+  VERIFIED
+  DELIVERED
+  CANCELLED
+}
+
+// Request Priority enum
+enum RequestPriority {
+  STAT            // Immediate
+  URGENT          // Within hours
+  ROUTINE         // Standard scheduling
+  ELECTIVE        // Non-urgent
+}
+
+// Radiology Study model (DICOM Study level)
+model RadiologyStudy {
+  id                String               @id @default(cuid())
+  requestId         String               @unique
+  request           RadiologyRequest     @relation(fields: [requestId], references: [id])
+  studyInstanceUID  String               @unique // DICOM Study Instance UID
+  studyDate         DateTime
+  studyDescription  String?
+  accessionNumber   String               @unique
+  performedBy       String               // Technician ID
+  radiologistId     String?              // Assigned radiologist
+  status            RadiologyStatus      @default(IN_PROGRESS)
+  patientPosition   String?
+  studyNotes        String?              @db.Text
+  radiationDose     Float?               // For applicable modalities
+  contrastUsed      Boolean              @default(false)
+  contrastDetails   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  // Relations
+  series            RadiologySeries[]
+  report            RadiologyReport?
+}
+
+// Radiology Series model (DICOM Series level)
+model RadiologySeries {
+  id                String           @id @default(cuid())
+  studyId           String
+  study             RadiologyStudy   @relation(fields: [studyId], references: [id])
+  seriesInstanceUID String           @unique // DICOM Series Instance UID
+  seriesNumber      Int
+  seriesDescription String?
+  modality          ModalityType
+  bodyPartExamined  String?
+  patientPosition   String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  instances         RadiologyInstance[]
+}
+
+// Radiology Instance model (DICOM Instance/Image level)
+model RadiologyInstance {
+  id                   String           @id @default(cuid())
+  seriesId             String
+  series               RadiologySeries  @relation(fields: [seriesId], references: [id])
+  sopInstanceUID       String           @unique // DICOM SOP Instance UID
+  sopClassUID          String           // DICOM SOP Class UID
+  instanceNumber       Int
+  imageType            String           // DICOM, JPEG, etc.
+  filePath             String           // Path to the stored DICOM file
+  thumbnailPath        String?          // Path to thumbnail for quick viewing
+  transferSyntaxUID    String?          // DICOM Transfer Syntax UID
+  rows                 Int?             // Image rows
+  columns              Int?             // Image columns
+  bitsAllocated        Int?             // Bits allocated
+  windowCenter         Float?           // Default window center
+  windowWidth          Float?           // Default window width
+  metadata             Json?            // Additional DICOM metadata as JSON
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+// Enhanced Radiology Report model
+model RadiologyReport {
+  id                String         @id @default(cuid())
+  studyId           String         @unique
+  study             RadiologyStudy @relation(fields: [studyId], references: [id])
+  findings          String         @db.Text
+  impression        String         @db.Text
+  recommendation    String?        @db.Text
+  diagnosisCode     String?        // ICD code if applicable
+  radiologistId     String         // User ID of radiologist
+  reportStatus      ReportStatus   @default(DRAFT)
+  reportedAt        DateTime       @default(now())
+  verifiedBy        String?        // User ID of verifier
+  verifiedAt        DateTime?
+  signatureImage    String?        // Path to radiologist's signature image
+  templateUsed      String?        // Template ID if a template was used
+  keyImages         String[]       // Array of instance IDs marked as key images
+  criticalResult    Boolean        @default(false)
+  criticalResultCommunicatedTo String?
+  criticalResultCommunicatedAt DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+// Report Status enum
+enum ReportStatus {
+  DRAFT
+  PRELIMINARY
+  FINAL
+  AMENDED
+  ADDENDUM
+}
+
+// Radiology Billing model
+model RadiologyBilling {
+  id                String           @id @default(cuid())
+  requestId         String           @unique
+  request           RadiologyRequest @relation(fields: [requestId], references: [id])
+  invoiceNumber     String                @unique
+  baseAmount        Decimal
+  contrastAmount    Decimal               @default(0)
+  additionalFees    Decimal               @default(0)
+  discount          Decimal               @default(0)
+  tax               Decimal               @default(0)
+  totalAmount       Decimal
+  paymentStatus     RadiologyPaymentStatus @default(PENDING)
+  paymentMethod     String?
+  paymentDate       DateTime?
+  insuranceCovered  Boolean          @default(false)
+  insuranceProvider String?
+  insurancePolicyNumber String?
+  insuranceAuthorizationCode String?
+  insuranceAmount   Decimal          @default(0)
+  patientResponsibility Decimal      @default(0)
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+// Radiology Payment Status enum
+enum RadiologyPaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  CANCELLED
+}
+
+// Radiologist Assignment model
+model RadiologistAssignment {
+  id                String         @id @default(cuid())
+  radiologistId     String         // User ID of radiologist
+  modalityTypes     ModalityType[] // Array of modality types the radiologist is assigned to
+  isOnCall          Boolean        @default(false)
+  startTime         DateTime
+  endTime           DateTime
+  maxStudiesPerDay  Int            @default(20)
+  currentLoad       Int            @default(0) // Current number of studies assigned
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+// Radiology Analytics model
+model RadiologyAnalytics {
+  id                String         @id @default(cuid())
+  period            String         // daily, weekly, monthly, yearly
+  startDate         DateTime
+  endDate           DateTime
+  totalStudies      Int            @default(0)
+  studiesByModality Json?          // Count by modality type
+  studiesByStatus   Json?          // Count by status
+  studiesByBodyPart Json?          // Count by body part
+  averageReportTime Int?           // Average time to report in minutes
+  averageWaitTime   Int?           // Average wait time in minutes
+  radiologistPerformance Json?     // Performance metrics by radiologist
+  revenueGenerated  Decimal        @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+// Billing and Accounting System Models
+
+// GST Rate Types
+enum GSTRateType {
+  EXEMPT
+  ZERO
+  FIVE
+  TWELVE
+  EIGHTEEN
+  TWENTYEIGHT
+}
+
+// Invoice Status
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// Payment Method
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  NETBANKING
+  CHEQUE
+  INSURANCE
+  WALLET
+  OTHER
+}
+
+// Account Types
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+// Journal Entry Status
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+  APPROVED
+  REJECTED
+  REVERSED
+}
+
+// Financial Year Status
+enum FinancialYearStatus {
+  ACTIVE
+  CLOSED
+  LOCKED
+}
+
+// Tax Invoice Model
+model TaxInvoice {
+  id                String         @id @default(cuid())
+  invoiceNumber     String         @unique
+  patientId         String
+  patient           Patient        @relation(fields: [patientId], references: [id])
+  invoiceDate       DateTime       @default(now())
+  dueDate           DateTime
+  status            InvoiceStatus  @default(PENDING)
+  subtotal          Decimal        @db.Decimal(10, 2)
+  discountAmount    Decimal        @db.Decimal(10, 2) @default(0)
+  taxableAmount     Decimal        @db.Decimal(10, 2)
+  cgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  sgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  igstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal        @db.Decimal(10, 2)
+  paidAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  balanceAmount     Decimal        @db.Decimal(10, 2)
+  notes             String?
+  termsAndConditions String?
+  createdBy         String         // User ID
+  updatedBy         String?        // User ID
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  isGSTRegistered   Boolean        @default(true)
+  customerGSTIN     String?
+  placeOfSupply     String
+  hospitalGSTIN     String
+  invoiceItems      InvoiceItem[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
+  journalEntries    JournalEntry[]
+}
+
+// Invoice Item Model
+model InvoiceItem {
+  id                String      @id @default(cuid())
+  invoiceId         String
+  invoice           TaxInvoice  @relation(fields: [invoiceId], references: [id])
+  itemType          String      // Service, Procedure, Medication, etc.
+  itemId            String      // Reference to the specific item
+  description       String
+  hsnSacCode        String
+  quantity          Int
+  unitPrice         Decimal     @db.Decimal(10, 2)
+  discountPercent   Decimal     @db.Decimal(5, 2) @default(0)
+  discountAmount    Decimal     @db.Decimal(10, 2) @default(0)
+  taxableAmount     Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  cgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  cgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  sgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  sgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  igstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  igstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  departmentId      String?
+  doctorId          String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Payment Model
+model Payment {
+  id                String         @id @default(cuid())
+  invoiceId         String
+  invoice           TaxInvoice     @relation(fields: [invoiceId], references: [id])
+  paymentDate       DateTime       @default(now())
+  paymentMethod     PaymentMethod
+  amount            Decimal        @db.Decimal(10, 2)
+  transactionId     String?
+  chequeNumber      String?
+  bankName          String?
+  notes             String?
+  receivedBy        String         // User ID
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  journalEntryId    String?
+  journalEntry      JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+}
+
+// Credit Note Model (for refunds and returns)
+model CreditNote {
+  id                String         @id @default(cuid())
+  creditNoteNumber  String         @unique
+  invoiceId         String
+  invoice           TaxInvoice     @relation(fields: [invoiceId], references: [id])
+  issueDate         DateTime       @default(now())
+  reason            String
+  subtotal          Decimal        @db.Decimal(10, 2)
+  cgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  sgstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  igstAmount        Decimal        @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal        @db.Decimal(10, 2)
+  status            String         @default("ISSUED") // ISSUED, ADJUSTED, REFUNDED
+  refundMethod      PaymentMethod?
+  refundTransactionId String?
+  createdBy         String         // User ID
+  approvedBy        String?        // User ID
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  creditNoteItems   CreditNoteItem[]
+  journalEntryId    String?
+  journalEntry      JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+}
+
+// Credit Note Item Model
+model CreditNoteItem {
+  id                String      @id @default(cuid())
+  creditNoteId      String
+  creditNote        CreditNote  @relation(fields: [creditNoteId], references: [id])
+  invoiceItemType   String      // Service, Procedure, Medication, etc.
+  invoiceItemId     String      // Reference to the original invoice item
+  description       String
+  hsnSacCode        String
+  quantity          Int
+  unitPrice         Decimal     @db.Decimal(10, 2)
+  taxableAmount     Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  cgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  cgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  sgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  sgstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  igstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  igstAmount        Decimal     @db.Decimal(10, 2) @default(0)
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Service Price List
+model ServicePriceList {
+  id                String      @id @default(cuid())
+  serviceName       String
+  serviceCode       String      @unique
+  departmentId      String
+  hsnSacCode        String
+  basePrice         Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  isActive          Boolean     @default(true)
+  effectiveFrom     DateTime    @default(now())
+  effectiveTo       DateTime?
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Package Price List
+model PackagePriceList {
+  id                String      @id @default(cuid())
+  packageName       String
+  packageCode       String      @unique
+  departmentId      String
+  hsnSacCode        String
+  basePrice         Decimal     @db.Decimal(10, 2)
+  gstRateType       GSTRateType
+  description       String
+  duration          Int?        // In days, if applicable
+  isActive          Boolean     @default(true)
+  effectiveFrom     DateTime    @default(now())
+  effectiveTo       DateTime?
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  packageItems      PackageItem[]
+}
+
+// Package Item
+model PackageItem {
+  id                String          @id @default(cuid())
+  packageId         String
+  package           PackagePriceList @relation(fields: [packageId], references: [id])
+  itemType          String          // Service, Procedure, Medication, etc.
+  itemId            String          // Reference to the specific item
+  itemName          String
+  quantity          Int
+  unitPrice         Decimal         @db.Decimal(10, 2)
+  totalPrice        Decimal         @db.Decimal(10, 2)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// Chart of Accounts
+model ChartOfAccount {
+  id                String      @id @default(cuid())
+  accountCode       String      @unique
+  accountName       String
+  accountType       AccountType
+  parentAccountId   String?
+  parentAccount     ChartOfAccount? @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts     ChartOfAccount[] @relation("AccountHierarchy")
+  description       String?
+  isActive          Boolean     @default(true)
+  departmentId      String?
+  openingBalance    Decimal     @db.Decimal(15, 2) @default(0)
+  currentBalance    Decimal     @db.Decimal(15, 2) @default(0)
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  journalEntryItems JournalEntryItem[]
+}
+
+// Financial Year
+model FinancialYear {
+  id                String              @id @default(cuid())
+  yearName          String              @unique // e.g., "2023-2024"
+  startDate         DateTime
+  endDate           DateTime
+  status            FinancialYearStatus @default(ACTIVE)
+  isCurrent         Boolean             @default(false)
+  closedBy          String?             // User ID
+  closedAt          DateTime?
+  createdBy         String              // User ID
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  journalEntries    JournalEntry[]
+}
+
+// Journal Entry
+model JournalEntry {
+  id                String              @id @default(cuid())
+  entryNumber       String              @unique
+  entryDate         DateTime            @default(now())
+  financialYearId   String
+  financialYear     FinancialYear       @relation(fields: [financialYearId], references: [id])
+  reference         String?             // Reference to source transaction (invoice, payment, etc.)
+  referenceType     String?             // Type of reference (INVOICE, PAYMENT, CREDIT_NOTE, MANUAL)
+  description       String
+  totalDebit        Decimal             @db.Decimal(15, 2)
+  totalCredit       Decimal             @db.Decimal(15, 2)
+  status            JournalEntryStatus  @default(DRAFT)
+  isRecurring       Boolean             @default(false)
+  recurringInterval String?             // DAILY, WEEKLY, MONTHLY, etc.
+  nextRecurringDate DateTime?
+  createdBy         String              // User ID
+  approvedBy        String?             // User ID
+  approvedAt        DateTime?
+  reversedBy        String?             // User ID
+  reversedAt        DateTime?
+  reversalEntryId   String?             // Reference to reversal entry
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  journalItems      JournalEntryItem[]
+  invoices          TaxInvoice[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
+}
+
+// Journal Entry Item
+model JournalEntryItem {
+  id                String          @id @default(cuid())
+  journalEntryId    String
+  journalEntry      JournalEntry    @relation(fields: [journalEntryId], references: [id])
+  accountId         String
+  account           ChartOfAccount  @relation(fields: [accountId], references: [id])
+  description       String?
+  debitAmount       Decimal         @db.Decimal(15, 2) @default(0)
+  creditAmount      Decimal         @db.Decimal(15, 2) @default(0)
+  departmentId      String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+// GST Settings
+model GSTSettings {
+  id                String      @id @default(cuid())
+  hospitalGSTIN     String      @unique
+  legalName         String
+  tradeName         String?
+  addressLine1      String
+  addressLine2      String?
+  city              String
+  state             String
+  postalCode        String
+  country           String      @default("India")
+  email             String
+  phone             String
+  panNumber         String
+  gstRegistrationDate DateTime
+  returnFilingFrequency String   @default("MONTHLY") // MONTHLY, QUARTERLY
+  isActive          Boolean     @default(true)
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// HSN/SAC Code Master
+model HSNSACCode {
+  id                String      @id @default(cuid())
+  code              String      @unique
+  description       String
+  type              String      // HSN or SAC
+  gstRateType       GSTRateType
+  cgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  sgstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  igstRate          Decimal     @db.Decimal(5, 2) @default(0)
+  isActive          Boolean     @default(true)
+  createdBy         String      // User ID
+  updatedBy         String?     // User ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }

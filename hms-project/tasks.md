@@ -1123,7 +1123,7 @@ Implement the appointment scheduling system for managing patient appointments wi
 
 3. Design appointment confirmation and notification system
    * 3.1. Create email notification system
-   * 3.2. Implement SMS notification system
+   * 3.2. Implement SMS notification systemg
    * 3.3. Design WhatsApp appointment reminders with interactive confirmation
    * 3.4. Create notification scheduling and timing preferences
    * 3.5. Implement multi-channel notification strategy

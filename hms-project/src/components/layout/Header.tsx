@@ -14,16 +14,11 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  Badge,
   Button,
   Box,
-  Popover,
-  List,
-  ListItem,
 } from "@mui/material";
+import RadiologyRealTimeUpdates from "../radiology/RadiologyRealTimeUpdates";
 import {
-  Notifications as NotificationsIcon,
-  AccountCircle,
   Settings as SettingsIcon,
   ExitToApp as LogoutIcon,
   Person as PersonIcon,
@@ -40,7 +35,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
-  const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   const pathname = usePathname();
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -51,21 +45,12 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
     setProfileAnchorEl(null);
   };
 
-  const handleNotificationsOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationsAnchorEl(event.currentTarget);
-  };
-
-  const handleNotificationsClose = () => {
-    setNotificationsAnchorEl(null);
-  };
-
   const handleLogout = () => {
     handleProfileMenuClose();
     if (onLogout) onLogout();
   };
 
   const isProfileMenuOpen = Boolean(profileAnchorEl);
-  const isNotificationsOpen = Boolean(notificationsAnchorEl);
 
   return (
     <AppBar position="static" color="default" elevation={1} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
@@ -85,20 +70,9 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          {/* Notifications */}
-          <IconButton
-            color="inherit"
-            onClick={handleNotificationsOpen}
-            size="large"
-            aria-label="show notifications"
-            aria-controls="notifications-menu"
-            aria-haspopup="true"
-          >
-            <Badge badgeContent={3} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-
+          {/* Real-time Notifications */}
+          <RadiologyRealTimeUpdates />
+          
           {/* Profile */}
           {user ? (
             <IconButton
@@ -132,86 +106,6 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </Button>
           )}
         </Box>
-
-        {/* Notifications Menu */}
-        <Popover
-          id="notifications-menu"
-          anchorEl={notificationsAnchorEl}
-          open={isNotificationsOpen}
-          onClose={handleNotificationsClose}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "right",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-          PaperProps={{
-            sx: { width: 320, maxHeight: 400 },
-          }}
-        >
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Typography variant="subtitle1" fontWeight="medium">
-              Notifications
-            </Typography>
-          </Box>
-          <List sx={{ py: 0 }}>
-            <ListItem
-              divider
-              sx={{ py: 2, px: 2.5, "&:hover": { bgcolor: "action.hover" } }}
-              component="div"
-            >
-              <Box sx={{ width: "100%" }}>
-                <Typography variant="subtitle2">New patient registration</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  10 minutes ago
-                </Typography>
-              </Box>
-            </ListItem>
-            <ListItem
-              divider
-              sx={{ py: 2, px: 2.5, "&:hover": { bgcolor: "action.hover" } }}
-              component="div"
-            >
-              <Box sx={{ width: "100%" }}>
-                <Typography variant="subtitle2">Appointment reminder</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  1 hour ago
-                </Typography>
-              </Box>
-            </ListItem>
-            <ListItem
-              sx={{ py: 2, px: 2.5, "&:hover": { bgcolor: "action.hover" } }}
-              component="div"
-            >
-              <Box sx={{ width: "100%" }}>
-                <Typography variant="subtitle2">System update completed</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  2 hours ago
-                </Typography>
-              </Box>
-            </ListItem>
-          </List>
-          <Box
-            sx={{
-              p: 1,
-              borderTop: 1,
-              borderColor: "divider",
-              textAlign: "center",
-            }}
-          >
-            <Button
-              component={Link}
-              href="/notifications"
-              color="primary"
-              size="small"
-              onClick={handleNotificationsClose}
-            >
-              View all notifications
-            </Button>
-          </Box>
-        </Popover>
 
         {/* Profile Menu */}
         <Menu

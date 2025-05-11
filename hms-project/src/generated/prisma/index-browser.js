@@ -181,6 +181,100 @@ exports.Prisma.DoctorScalarFieldEnum = {
   maxAppointmentsPerDay: 'maxAppointmentsPerDay',
   isAvailableForOnline: 'isAvailableForOnline',
   about: 'about',
+  rating: 'rating',
+  totalPatients: 'totalPatients',
+  totalAppointments: 'totalAppointments',
+  appointmentCompletionRate: 'appointmentCompletionRate',
+  averageAppointmentDuration: 'averageAppointmentDuration',
+  preferredWorkingHours: 'preferredWorkingHours',
+  vacationDays: 'vacationDays',
+  vacationAllowance: 'vacationAllowance',
+  isAcceptingNewPatients: 'isAcceptingNewPatients',
+  maxPatientsPerDay: 'maxPatientsPerDay',
+  billingRate: 'billingRate',
+  referralCount: 'referralCount',
+  specialtyFocus: 'specialtyFocus',
+  certifications: 'certifications',
+  languages: 'languages',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DoctorAvailabilityScalarFieldEnum = {
+  id: 'id',
+  doctorId: 'doctorId',
+  dayOfWeek: 'dayOfWeek',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  isRecurring: 'isRecurring',
+  date: 'date',
+  isAvailable: 'isAvailable',
+  slotDuration: 'slotDuration',
+  maxPatients: 'maxPatients',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DoctorPerformanceMetricScalarFieldEnum = {
+  id: 'id',
+  doctorId: 'doctorId',
+  period: 'period',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  totalAppointments: 'totalAppointments',
+  completedAppointments: 'completedAppointments',
+  cancelledAppointments: 'cancelledAppointments',
+  noShowAppointments: 'noShowAppointments',
+  averageRating: 'averageRating',
+  averageDuration: 'averageDuration',
+  patientSatisfaction: 'patientSatisfaction',
+  revenueGenerated: 'revenueGenerated',
+  referralsReceived: 'referralsReceived',
+  referralsMade: 'referralsMade',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.PatientAssignmentScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  assignmentDate: 'assignmentDate',
+  isPrimaryDoctor: 'isPrimaryDoctor',
+  status: 'status',
+  notes: 'notes',
+  lastAppointment: 'lastAppointment',
+  nextAppointment: 'nextAppointment',
+  createdBy: 'createdBy',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DoctorReferralScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  referringDoctorId: 'referringDoctorId',
+  receivingDoctorId: 'receivingDoctorId',
+  reason: 'reason',
+  notes: 'notes',
+  priority: 'priority',
+  status: 'status',
+  appointmentId: 'appointmentId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DoctorCoConsultationScalarFieldEnum = {
+  id: 'id',
+  appointmentId: 'appointmentId',
+  doctorId: 'doctorId',
+  role: 'role',
+  notes: 'notes',
+  billingAmount: 'billingAmount',
+  duration: 'duration',
+  createdBy: 'createdBy',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -2079,6 +2173,169 @@ exports.Prisma.HousekeepingComplaintScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.RadiologyServiceCatalogScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  modalityType: 'modalityType',
+  price: 'price',
+  duration: 'duration',
+  preparationInstructions: 'preparationInstructions',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologyRequestScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  serviceCatalogId: 'serviceCatalogId',
+  requestedAt: 'requestedAt',
+  scheduledAt: 'scheduledAt',
+  priority: 'priority',
+  status: 'status',
+  clinicalInfo: 'clinicalInfo',
+  allergies: 'allergies',
+  previousExams: 'previousExams',
+  notes: 'notes',
+  reasonForExam: 'reasonForExam',
+  isPregnant: 'isPregnant',
+  weight: 'weight',
+  height: 'height',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologyStudyScalarFieldEnum = {
+  id: 'id',
+  requestId: 'requestId',
+  studyInstanceUID: 'studyInstanceUID',
+  studyDate: 'studyDate',
+  studyDescription: 'studyDescription',
+  accessionNumber: 'accessionNumber',
+  performedBy: 'performedBy',
+  radiologistId: 'radiologistId',
+  status: 'status',
+  patientPosition: 'patientPosition',
+  studyNotes: 'studyNotes',
+  radiationDose: 'radiationDose',
+  contrastUsed: 'contrastUsed',
+  contrastDetails: 'contrastDetails',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologySeriesScalarFieldEnum = {
+  id: 'id',
+  studyId: 'studyId',
+  seriesInstanceUID: 'seriesInstanceUID',
+  seriesNumber: 'seriesNumber',
+  seriesDescription: 'seriesDescription',
+  modality: 'modality',
+  bodyPartExamined: 'bodyPartExamined',
+  patientPosition: 'patientPosition',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologyInstanceScalarFieldEnum = {
+  id: 'id',
+  seriesId: 'seriesId',
+  sopInstanceUID: 'sopInstanceUID',
+  sopClassUID: 'sopClassUID',
+  instanceNumber: 'instanceNumber',
+  imageType: 'imageType',
+  filePath: 'filePath',
+  thumbnailPath: 'thumbnailPath',
+  transferSyntaxUID: 'transferSyntaxUID',
+  rows: 'rows',
+  columns: 'columns',
+  bitsAllocated: 'bitsAllocated',
+  windowCenter: 'windowCenter',
+  windowWidth: 'windowWidth',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologyReportScalarFieldEnum = {
+  id: 'id',
+  studyId: 'studyId',
+  findings: 'findings',
+  impression: 'impression',
+  recommendation: 'recommendation',
+  diagnosisCode: 'diagnosisCode',
+  radiologistId: 'radiologistId',
+  reportStatus: 'reportStatus',
+  reportedAt: 'reportedAt',
+  verifiedBy: 'verifiedBy',
+  verifiedAt: 'verifiedAt',
+  signatureImage: 'signatureImage',
+  templateUsed: 'templateUsed',
+  keyImages: 'keyImages',
+  criticalResult: 'criticalResult',
+  criticalResultCommunicatedTo: 'criticalResultCommunicatedTo',
+  criticalResultCommunicatedAt: 'criticalResultCommunicatedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologyBillingScalarFieldEnum = {
+  id: 'id',
+  requestId: 'requestId',
+  invoiceNumber: 'invoiceNumber',
+  baseAmount: 'baseAmount',
+  contrastAmount: 'contrastAmount',
+  additionalFees: 'additionalFees',
+  discount: 'discount',
+  tax: 'tax',
+  totalAmount: 'totalAmount',
+  paymentStatus: 'paymentStatus',
+  paymentMethod: 'paymentMethod',
+  paymentDate: 'paymentDate',
+  insuranceCovered: 'insuranceCovered',
+  insuranceProvider: 'insuranceProvider',
+  insurancePolicyNumber: 'insurancePolicyNumber',
+  insuranceAuthorizationCode: 'insuranceAuthorizationCode',
+  insuranceAmount: 'insuranceAmount',
+  patientResponsibility: 'patientResponsibility',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologistAssignmentScalarFieldEnum = {
+  id: 'id',
+  radiologistId: 'radiologistId',
+  modalityTypes: 'modalityTypes',
+  isOnCall: 'isOnCall',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  maxStudiesPerDay: 'maxStudiesPerDay',
+  currentLoad: 'currentLoad',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RadiologyAnalyticsScalarFieldEnum = {
+  id: 'id',
+  period: 'period',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  totalStudies: 'totalStudies',
+  studiesByModality: 'studiesByModality',
+  studiesByStatus: 'studiesByStatus',
+  studiesByBodyPart: 'studiesByBodyPart',
+  averageReportTime: 'averageReportTime',
+  averageWaitTime: 'averageWaitTime',
+  radiologistPerformance: 'radiologistPerformance',
+  revenueGenerated: 'revenueGenerated',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2108,6 +2365,28 @@ exports.Prisma.JsonNullValueFilter = {
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
 };
+exports.PatientAssignmentStatus = exports.$Enums.PatientAssignmentStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  TRANSFERRED: 'TRANSFERRED',
+  COMPLETED: 'COMPLETED'
+};
+
+exports.ReferralPriority = exports.$Enums.ReferralPriority = {
+  LOW: 'LOW',
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  URGENT: 'URGENT'
+};
+
+exports.ReferralStatus = exports.$Enums.ReferralStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED'
+};
+
 exports.AppointmentStatus = exports.$Enums.AppointmentStatus = {
   SCHEDULED: 'SCHEDULED',
   CONFIRMED: 'CONFIRMED',
@@ -2794,11 +3073,64 @@ exports.ComplaintStatus = exports.$Enums.ComplaintStatus = {
   REOPENED: 'REOPENED'
 };
 
+exports.ModalityType = exports.$Enums.ModalityType = {
+  XRAY: 'XRAY',
+  CT: 'CT',
+  MRI: 'MRI',
+  ULTRASOUND: 'ULTRASOUND',
+  MAMMOGRAPHY: 'MAMMOGRAPHY',
+  FLUOROSCOPY: 'FLUOROSCOPY',
+  DEXA: 'DEXA',
+  PET: 'PET',
+  NUCLEAR_MEDICINE: 'NUCLEAR_MEDICINE',
+  ANGIOGRAPHY: 'ANGIOGRAPHY'
+};
+
+exports.RequestPriority = exports.$Enums.RequestPriority = {
+  STAT: 'STAT',
+  URGENT: 'URGENT',
+  ROUTINE: 'ROUTINE',
+  ELECTIVE: 'ELECTIVE'
+};
+
+exports.RadiologyStatus = exports.$Enums.RadiologyStatus = {
+  REQUESTED: 'REQUESTED',
+  SCHEDULED: 'SCHEDULED',
+  CHECKED_IN: 'CHECKED_IN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  REPORTED: 'REPORTED',
+  VERIFIED: 'VERIFIED',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED'
+};
+
+exports.ReportStatus = exports.$Enums.ReportStatus = {
+  DRAFT: 'DRAFT',
+  PRELIMINARY: 'PRELIMINARY',
+  FINAL: 'FINAL',
+  AMENDED: 'AMENDED',
+  ADDENDUM: 'ADDENDUM'
+};
+
+exports.RadiologyPaymentStatus = exports.$Enums.RadiologyPaymentStatus = {
+  PENDING: 'PENDING',
+  PARTIAL: 'PARTIAL',
+  PAID: 'PAID',
+  REFUNDED: 'REFUNDED',
+  CANCELLED: 'CANCELLED'
+};
+
 exports.Prisma.ModelName = {
   User: 'User',
   Profile: 'Profile',
   UserPreference: 'UserPreference',
   Doctor: 'Doctor',
+  DoctorAvailability: 'DoctorAvailability',
+  DoctorPerformanceMetric: 'DoctorPerformanceMetric',
+  PatientAssignment: 'PatientAssignment',
+  DoctorReferral: 'DoctorReferral',
+  DoctorCoConsultation: 'DoctorCoConsultation',
   Nurse: 'Nurse',
   Staff: 'Staff',
   Department: 'Department',
@@ -2930,7 +3262,16 @@ exports.Prisma.ModelName = {
   LinenTransaction: 'LinenTransaction',
   WasteManagement: 'WasteManagement',
   PestControl: 'PestControl',
-  HousekeepingComplaint: 'HousekeepingComplaint'
+  HousekeepingComplaint: 'HousekeepingComplaint',
+  RadiologyServiceCatalog: 'RadiologyServiceCatalog',
+  RadiologyRequest: 'RadiologyRequest',
+  RadiologyStudy: 'RadiologyStudy',
+  RadiologySeries: 'RadiologySeries',
+  RadiologyInstance: 'RadiologyInstance',
+  RadiologyReport: 'RadiologyReport',
+  RadiologyBilling: 'RadiologyBilling',
+  RadiologistAssignment: 'RadiologistAssignment',
+  RadiologyAnalytics: 'RadiologyAnalytics'
 };
 
 /**
