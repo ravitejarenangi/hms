@@ -328,13 +328,10 @@ export async function PUT(req: NextRequest) {
  *       200:
  *         description: Calculated billing breakdown
  */
-export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
+export async function calculateBilling(req: NextRequest, { params }: { params: { path: string[] } }) {
   // Check if this is the /calculate endpoint
   const url = new URL(req.url);
-  if (!url.pathname.endsWith("/calculate")) {
-    // Forward to the default POST handler
-    return POST(req);
-  }
+  // This is now the main calculation function, so we don't need to redirect
 
   try {
     const session = await getServerSession(authOptions);

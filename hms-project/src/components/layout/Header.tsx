@@ -94,189 +94,192 @@ const Header: React.FC<HeaderProps> = ({
         color: darkMode ? 'common.white' : 'text.primary',
       }}
     >
-      <Toolbar>
-        {/* Mobile menu toggle */}
-        <IconButton
-          color="inherit"
-          aria-label="open drawer"
-          edge="start"
-          onClick={toggleDrawer}
-          sx={{ mr: 2, display: { sm: 'none' } }}
-        >
-          <MenuIcon />
-        </IconButton>
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        {/* Left Section: Logo and mobile menu */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {/* Mobile menu toggle */}
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={toggleDrawer}
+            sx={{ mr: 2, display: { sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
 
-        <Box 
-          component={Link} 
-          href="/dashboard"
-          sx={{
-            display: { xs: 'none', sm: 'flex' },
-            alignItems: 'center',
-            textDecoration: 'none',
-          }}
-        >
-          <Box
+          <Box 
+            component={Link} 
+            href="/dashboard"
             sx={{
-              display: 'flex',
+              display: { xs: 'none', sm: 'flex' },
               alignItems: 'center',
-              justifyContent: 'center',
-              width: 38,
-              height: 38,
-              borderRadius: 1.5,
-              bgcolor: 'primary.main',
-              color: 'white',
-              mr: 1.5,
+              textDecoration: 'none',
             }}
           >
-            <Typography variant="h6" fontWeight="bold">
-              H
-            </Typography>
-          </Box>
-          <Typography
-            variant="h6"
-            sx={{
-              textDecoration: "none",
-              color: "primary.main",
-              fontWeight: "bold",
-              letterSpacing: '0.5px',
-            }}
-          >
-            HMS
-          </Typography>
-        </Box>
-
-        {/* Global Search */}
-        <Box 
-          component="form" 
-          onSubmit={handleSearch}
-          sx={{ 
-            ml: 2,
-            flexGrow: 1,
-            maxWidth: { xs: '100%', md: 400 },
-            position: 'relative',
-            borderRadius: 2,
-            bgcolor: (theme) => alpha(theme.palette.common.white, darkMode ? 0.15 : 0.05),
-            border: (theme) => `1px solid ${alpha(theme.palette.divider, darkMode ? 0.2 : 0.1)}`,
-            boxShadow: (theme) => `0px 2px 6px ${alpha(theme.palette.common.black, darkMode ? 0.3 : 0.05)}`,
-            '&:hover': {
-              bgcolor: (theme) => alpha(theme.palette.common.white, darkMode ? 0.25 : 0.1),
-              boxShadow: (theme) => `0px 4px 12px ${alpha(theme.palette.common.black, darkMode ? 0.4 : 0.08)}`,
-            },
-            transition: 'all 0.2s ease-in-out',
-            mr: 2,
-          }}
-        >
-          <TextField
-            placeholder="Search..."
-            variant="standard"
-            fullWidth
-            value={searchQuery}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-              disableUnderline: true,
-              sx: { px: 1, py: 0.5 }
-            }}
-          />
-        </Box>
-
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          {/* Dark Mode Toggle */}
-          <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
-            <IconButton
-              onClick={onToggleDarkMode}
-              size="small"
+            <Box
               sx={{
-                ml: 1,
-                bgcolor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
-                width: 36,
-                height: 36,
-                borderRadius: '12px',
-                '&:hover': {
-                  bgcolor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
-                },
-                transition: 'all 0.2s',
-              }}
-            >
-              {darkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-
-          {/* Real-time Notifications */}
-          <RadiologyRealTimeUpdates />
-          
-          {/* Profile */}
-          {user ? (
-            <Box 
-              sx={{ 
-                display: 'flex', 
+                display: 'flex',
                 alignItems: 'center',
-                ml: 1, 
-                bgcolor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
-                borderRadius: '12px',
-                px: 1,
-                py: 0.5,
-                cursor: 'pointer',
-                '&:hover': {
-                  bgcolor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
-                },
-                transition: 'all 0.2s'
+                justifyContent: 'center',
+                width: 38,
+                height: 38,
+                borderRadius: 1.5,
+                bgcolor: 'primary.main',
+                color: 'white',
+                mr: 1.5,
               }}
-              onClick={handleProfileMenuOpen}
-              aria-label="account of current user"
-              aria-controls="profile-menu"
-              aria-haspopup="true"
             >
-              {user.avatar ? (
-                <Avatar 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  sx={{ 
-                    width: 36, 
-                    height: 36,
-                    border: '2px solid',
-                    borderColor: 'primary.main',
-                  }} 
-                />
-              ) : (
-                <Avatar 
-                  sx={{ 
-                    width: 36, 
-                    height: 36, 
-                    bgcolor: "primary.main",
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {user.name.charAt(0).toUpperCase()}
-                </Avatar>
-              )}
-              <Typography
-                variant="body2"
-                sx={{ 
-                  ml: 1, 
-                  fontWeight: 600,
-                  display: { xs: 'none', sm: 'block' }
-                }}
-              >
-                {user.name.split(' ')[0]}
+              <Typography variant="h6" fontWeight="bold">
+                H
               </Typography>
             </Box>
-          ) : (
-            <Button
-              component={Link}
-              href="/login"
-              variant="contained"
-              color="primary"
-              size="small"
-              sx={{ ml: 1 }}
+            <Typography
+              variant="h6"
+              sx={{
+                textDecoration: "none",
+                color: "primary.main",
+                fontWeight: "bold",
+                letterSpacing: '0.5px',
+              }}
             >
-              Sign in
-            </Button>
-          )}
+              HMS
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Right Section: Search, Dark Mode, Notifications, Profile */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Global Search */}
+          <Box 
+            component="form" 
+            onSubmit={handleSearch}
+            sx={{ 
+              position: 'relative',
+              borderRadius: 2,
+              bgcolor: (theme) => alpha(theme.palette.common.white, darkMode ? 0.15 : 0.05),
+              border: (theme) => `1px solid ${alpha(theme.palette.divider, darkMode ? 0.2 : 0.1)}`,
+              boxShadow: (theme) => `0px 2px 6px ${alpha(theme.palette.common.black, darkMode ? 0.3 : 0.05)}`,
+              '&:hover': {
+                bgcolor: (theme) => alpha(theme.palette.common.white, darkMode ? 0.25 : 0.1),
+                boxShadow: (theme) => `0px 4px 12px ${alpha(theme.palette.common.black, darkMode ? 0.4 : 0.08)}`,
+              },
+              transition: 'all 0.2s ease-in-out',
+              width: { xs: '180px', sm: '240px', md: '300px' }
+            }}
+          >
+            <TextField
+              placeholder="Search..."
+              variant="standard"
+              fullWidth
+              value={searchQuery}
+              onChange={handleSearchChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                disableUnderline: true,
+                sx: { px: 1, py: 0.5 }
+              }}
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {/* Dark Mode Toggle */}
+            <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+              <IconButton
+                onClick={onToggleDarkMode}
+                size="small"
+                sx={{
+                  ml: 1,
+                  bgcolor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                  width: 36,
+                  height: 36,
+                  borderRadius: '12px',
+                  '&:hover': {
+                    bgcolor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                  transition: 'all 0.2s',
+                }}
+              >
+                {darkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+
+            {/* Real-time Notifications */}
+            <RadiologyRealTimeUpdates />
+            
+            {/* Profile */}
+            {user ? (
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  ml: 1, 
+                  bgcolor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                  borderRadius: '12px',
+                  px: 1,
+                  py: 0.5,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    bgcolor: darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                  transition: 'all 0.2s'
+                }}
+                onClick={handleProfileMenuOpen}
+                aria-label="account of current user"
+                aria-controls="profile-menu"
+                aria-haspopup="true"
+              >
+                {user.avatar ? (
+                  <Avatar 
+                    src={user.avatar} 
+                    alt={user.name} 
+                    sx={{ 
+                      width: 36, 
+                      height: 36,
+                      border: '2px solid',
+                      borderColor: 'primary.main',
+                    }} 
+                  />
+                ) : (
+                  <Avatar 
+                    sx={{ 
+                      width: 36, 
+                      height: 36, 
+                      bgcolor: "primary.main",
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {user.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                )}
+                <Typography
+                  variant="body2"
+                  sx={{ 
+                    ml: 1, 
+                    fontWeight: 600,
+                    display: { xs: 'none', sm: 'block' }
+                  }}
+                >
+                  {user.name.split(' ')[0]}
+                </Typography>
+              </Box>
+            ) : (
+              <Button
+                component={Link}
+                href="/login"
+                variant="contained"
+                color="primary"
+                size="small"
+                sx={{ ml: 1 }}
+              >
+                Sign in
+              </Button>
+            )}
+          </Box>
         </Box>
 
         {/* Profile Menu */}

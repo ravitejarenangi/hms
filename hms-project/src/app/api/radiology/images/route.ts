@@ -463,6 +463,21 @@ export async function updateStudyStatus(studyId: string): Promise<void> {
       where: { id: study.requestId },
       data: {
         status: newStatus
+      }
+    });
+      
+    // Only send notification if status changed to COMPLETED
+    if (statusChanged && newStatus === 'COMPLETED' && previousStudy?.request?.doctor) {
+      // Get modality type and patient information
+      const modalityType = seriesCount > 0 ? 
+        (await prisma.radiologySeries.findFirst({ where: { studyId } }))?.modality || 'Unknown' : 
+        'Unknown';
+      
+      const patientData = await prisma.patient.findUnique({
+        where: { id: request.patientId }
+      });
+      const patientName = patientData?.fullName || 'Unknown Patient';
+      const doctorUserId = previousStudy.request.doctor.userId;
       
       // Create notification event for status change
       const notificationEvent = {
@@ -479,15 +494,19 @@ export async function updateStudyStatus(studyId: string): Promise<void> {
       };
       
       // Send notification to the referring doctor
-      await sendRadiologyEvent(notificationEvent, doctorUserId);
-      
-      // Update the request status if it exists
-      if (previousStudy.request?.id) {
-        await prisma.radiologyRequest.update({
-          where: { id: previousStudy.request.id },
-          data: { status: 'COMPLETED' }
-        });
+      if (doctorUserId) {
+        await sendRadiologyEvent(notificationEvent, doctorUserId);
       }
     }
+    
+    // Update the request status if it exists
+    if (previousStudy?.request?.id) {
+      await prisma.radiologyRequest.update({
+        where: { id: previousStudy.request.id },
+        data: { status: 'COMPLETED' }
+      });
+    }
+  } catch (error) {
+    console.error(`Error updating study status for study ${studyId}:`, error);
   }
 }
